@@ -1,4 +1,4 @@
-const firebaseConfig = {
+window.__ST_FIREBASE_CONFIG__ = {
   apiKey: "AIzaSyDE3elN9y9ZAFaVBHm8xGN8HYqp-CI1phg",
   authDomain: "sruthi-transport-4268c.firebaseapp.com",
   projectId: "sruthi-transport-4268c",
