@@ -128,7 +128,9 @@
         <p class="page-sub">Manage credit entries and accounts</p>
       </div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="exportPDF('credit')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-outline" onclick="openPdfFilter('credit')">
+    <i class="bi bi-file-earmark-pdf"></i> PDF
+</button>
         <button class="btn-primary" onclick="openModal('credit')"><i class="bi bi-plus-lg"></i> Add Entry</button>
       </div>
     </div>
@@ -410,8 +412,43 @@
     <div class="toast-body" id="toastBody"></div>
   </div>
 </div>
+<!-- PDF Model Popup -->
+<div class="modal fade" id="pdfModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
 
+      <div class="modal-header">
+        <h5>Select PDF Filter</h5>
+      </div>
 
+      <div class="modal-body">
+
+        <select class="form-control" id="pdfType">
+          <option value="current">Current Month</option>
+          <option value="lastmonth">Last Month</option>
+          <option value="all">Whole Data</option>
+          <option value="custom">Custom Date Range</option>
+        </select>
+
+        <div id="customDates" style="display:none;margin-top:15px;">
+          <label>From Date</label>
+          <input type="date" id="fromDate" class="form-control">
+
+          <label class="mt-2">To Date</label>
+          <input type="date" id="toDate" class="form-control">
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="downloadFilteredPDF()">
+          Download PDF
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <!-- Scripts -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
