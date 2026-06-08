@@ -85,7 +85,8 @@ function initNav() {
 function go(page) {
   document.querySelectorAll('.nav-item').forEach(a => a.classList.toggle('active', a.dataset.page === page));
   document.querySelectorAll('.page').forEach(s => s.classList.toggle('active', s.id === `page-${page}`));
-  const titles = { dashboard:'Dashboard', credit:'Credit Amount', pending:'Pending Amount', loads:'Loads to Saburi' };
+  const titles = { dashboard:'Dashboard', credit:'Credit Amount', pending:'Pending Amount', loads:'Loads to Saburi', allloads:'All Loads',
+ drivers:'Driver Attendance' };
   document.getElementById('pageTitle').textContent = titles[page] || page;
   if (page === 'dashboard') refreshDash();
 }
@@ -204,6 +205,21 @@ function openModal(name, rec = null) {
     document.getElementById('loadsModalTitle').textContent = rec ? 'Edit Load Entry' : 'Add Load Entry';
     new bootstrap.Modal(document.getElementById('loadsModal')).show();
   }
+   else if(name === 'allLoads'){
+
+ new bootstrap.Modal(
+ document.getElementById('allLoadsModal')
+ ).show();
+
+}
+
+else if(name === 'drivers'){
+
+ new bootstrap.Modal(
+ document.getElementById('driversModal')
+ ).show();
+
+}
 }
 
 function today() { return new Date().toISOString().slice(0,10); }
@@ -336,6 +352,24 @@ function filtered(name) {
       if (name === 'credit')  txt = `${r.company} ${r.account} ${r.date} ${r.amount}`;
       if (name === 'pending') txt = `${r.name} ${r.reason} ${r.date} ${r.amount}`;
       if (name === 'loads')   txt = `${r.vehicle} ${r.date} ${r.weight} ${r.rate}`;
+       if (name === 'allLoads')
+txt = `
+${r.vehicle}
+${r.driverName}
+${r.driverBeta}
+${r.fromPlace}
+${r.toPlace}
+${r.partyPerson}
+${r.loadingPerson}
+${r.date}
+`;
+
+if (name === 'drivers')
+txt = `
+${r.driverName}
+${r.status}
+${r.date}
+`;
       let ok = txt.toLowerCase().includes(q);
       if (name === 'credit' && co) ok = ok && r.company === co;
       return ok;
@@ -354,6 +388,11 @@ function render(name) {
   if (name === 'credit')  renderCredit(slice, offset);
   if (name === 'pending') renderPending(slice, offset);
   if (name === 'loads')   renderLoads(slice, offset);
+   if (name === 'allLoads')
+renderAllLoads(slice, offset);
+
+if (name === 'drivers')
+renderDrivers(slice, offset);
 
   renderPg(name, rows.length);
   renderTotals(name, rows);
@@ -404,7 +443,72 @@ function renderLoads(rows, off) {
         <button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
+function renderAllLoads(rows, off){
 
+ const b =
+ document.getElementById('allLoadsBody');
+
+ if(!b) return;
+
+ if(!rows.length){
+   b.innerHTML = emptyRow(8);
+   return;
+ }
+
+ b.innerHTML =
+ rows.map((r,i)=>`
+
+ <tr>
+
+ <td>${off+i+1}</td>
+
+ <td>${fmtDate(r.date)}</td>
+
+ <td>${r.vehicle}</td>
+
+ <td>${r.driverName}</td>
+
+ <td>${r.fromPlace}</td>
+
+ <td>${r.toPlace}</td>
+
+ <td>${r.weight}</td>
+
+ <td>₹ ${fmt(r.total)}</td>
+
+ </tr>
+
+ `).join('');
+}
+function renderDrivers(rows, off){
+
+ const b =
+ document.getElementById('driversBody');
+
+ if(!b) return;
+
+ if(!rows.length){
+   b.innerHTML = emptyRow(4);
+   return;
+ }
+
+ b.innerHTML =
+ rows.map((r,i)=>`
+
+ <tr>
+
+ <td>${off+i+1}</td>
+
+ <td>${fmtDate(r.date)}</td>
+
+ <td>${r.driverName}</td>
+
+ <td>${r.status}</td>
+
+ </tr>
+
+ `).join('');
+}
 function emptyRow(cols) {
   return `<tr class="empty-row"><td colspan="${cols}"><i class="bi bi-inbox"></i><br/>No records found</td></tr>`;
 }
