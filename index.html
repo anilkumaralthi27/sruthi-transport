@@ -231,6 +231,82 @@
 
   <!-- ───────── LOADS TO SABURI ───────── -->
   <section class="page" id="page-loads">
+    <section class="page" id="page-allloads">
+
+<div class="page-head">
+<h2 class="page-h">All Loads</h2>
+
+<button class="btn-primary"
+onclick="openModal('allLoads')">
+Add Load
+</button>
+</div>
+
+<div class="glass-card">
+
+<input
+id="allLoadsSearch"
+class="finput"
+placeholder="Search..."
+oninput="filterAndRender('allLoads')">
+
+<table class="ptable">
+
+<thead>
+<tr>
+<th>Date</th>
+<th>Vehicle</th>
+<th>Driver</th>
+<th>Weight</th>
+<th>Total</th>
+</tr>
+</thead>
+
+<tbody id="allLoadsBody"></tbody>
+
+</table>
+
+</div>
+
+</section>
+    <section class="page" id="page-drivers">
+
+<div class="page-head">
+<h2 class="page-h">
+Driver Attendance
+</h2>
+
+<button class="btn-primary"
+onclick="openModal('drivers')">
+Add Attendance
+</button>
+</div>
+
+<div class="glass-card">
+
+<input
+id="driversSearch"
+class="finput"
+placeholder="Search Driver"
+oninput="filterAndRender('drivers')">
+
+<table class="ptable">
+
+<thead>
+<tr>
+<th>Date</th>
+<th>Driver</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody id="driversBody"></tbody>
+
+</table>
+
+</div>
+
+</section>
     <div class="page-head">
       <div>
         <h2 class="page-h">Loads to Saburi</h2>
@@ -458,81 +534,15 @@
     </div>
   </div>
 </div>
-<section class="page" id="page-allloads">
+<select id="fDriverStatus">
 
-  <div class="page-head">
-    <h2>All Loads</h2>
+<option>Present</option>
 
-    <button class="btn-outline"
-      onclick="openPdfFilter('allLoads')">
-      PDF
-    </button>
+<option>Absent</option>
 
-    <button class="btn-primary"
-      onclick="openModal('allLoads')">
-      Add Load
-    </button>
-  </div>
+<option>Available No Load</option>
 
-  <div class="glass-card">
-
-    <input
-      id="allLoadsSearch"
-      class="finput"
-      placeholder="Search..."
-      oninput="filterAndRender('allLoads')">
-
-    <table class="ptable">
-      <thead>
-      <tr>
-        <th>Date</th>
-        <th>Vehicle</th>
-        <th>Driver</th>
-        <th>Weight</th>
-        <th>Total</th>
-      </tr>
-      </thead>
-
-      <tbody id="allLoadsBody"></tbody>
-    </table>
-
-  </div>
-
-</section>
-  <section class="page" id="page-drivers">
-
-<h2>Driver Attendance</h2>
-
-<button class="btn-primary"
-onclick="openModal('drivers')">
-Add Attendance
-</button>
-
-<div class="glass-card">
-
-<input
-id="driversSearch"
-class="finput"
-placeholder="Search Driver"
-oninput="filterAndRender('drivers')">
-
-<table class="ptable">
-
-<thead>
-<tr>
-<th>Date</th>
-<th>Driver</th>
-<th>Status</th>
-</tr>
-</thead>
-
-<tbody id="driversBody"></tbody>
-
-</table>
-
-</div>
-
-</section>
+</select>
 <!-- Scripts -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
