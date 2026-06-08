@@ -324,15 +324,17 @@ function filtered(name) {
   const q  = (document.getElementById(`${name}Search`)?.value || '').toLowerCase();
   const co = document.getElementById('creditCo')?.value || '';
 
-  return data[name].filter(r => {
-    let txt = '';
-    if (name === 'credit')  txt = `${r.company} ${r.account} ${r.date} ${r.amount}`;
-    if (name === 'pending') txt = `${r.name} ${r.reason} ${r.date} ${r.amount}`;
-    if (name === 'loads')   txt = `${r.vehicle} ${r.date} ${r.weight} ${r.rate}`;
-    let ok = txt.toLowerCase().includes(q);
-    if (name === 'credit' && co) ok = ok && r.company === co;
-    return ok;
-  });
+  return data[name]
+    .filter(r => {
+      let txt = '';
+      if (name === 'credit')  txt = `${r.company} ${r.account} ${r.date} ${r.amount}`;
+      if (name === 'pending') txt = `${r.name} ${r.reason} ${r.date} ${r.amount}`;
+      if (name === 'loads')   txt = `${r.vehicle} ${r.date} ${r.weight} ${r.rate}`;
+      let ok = txt.toLowerCase().includes(q);
+      if (name === 'credit' && co) ok = ok && r.company === co;
+      return ok;
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date)); // Latest date first
 }
 
 // ── Render tables ──────────────────────────────────
