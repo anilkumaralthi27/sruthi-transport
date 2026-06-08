@@ -15,7 +15,9 @@ const data = { credit: [], pending: [], loads: [], allLoads: [],
 const pg   = {
   credit:  { cur: 1, per: 8, list: [] },
   pending: { cur: 1, per: 8, list: [] },
-  loads:   { cur: 1, per: 8, list: [] }
+  loads:   { cur: 1, per: 8, list: [] },
+  allLoads:{ cur: 1, per: 8, list: [] },
+  drivers:{ cur: 1, per: 8, list: [] }
 };
 
 // ── Bootstrap ──────────────────────────────────────
@@ -137,7 +139,9 @@ async function loadAll() {
   await Promise.all([
     fetchCol('credit'),
     fetchCol('pending'),
-    fetchCol('loads')
+    fetchCol('loads'),
+      fetchCol('allLoads'),
+ fetchCol('drivers')
   ]);
   spin(false);
   refreshDash();
@@ -156,7 +160,8 @@ async function fetchCol(name) {
 
 // ── Load from localStorage ─────────────────────────
 function loadFromLS() {
-  ['credit','pending','loads'].forEach(n => {
+  ['credit','pending','loads','allLoads',
+'drivers'].forEach(n => {
     try { data[n] = JSON.parse(localStorage.getItem(`st-${n}`) || '[]'); }
     catch { data[n] = []; }
     render(n);
@@ -663,4 +668,44 @@ function downloadFilteredPDF() {
     }
 
     exportPDF(pdfModule, rows);
+}
+async function saveAllLoad() {
+
+ const rec = {
+
+   date,
+   vehicle,
+   driverName,
+   driverBeta,
+   fromPlace,
+   toPlace,
+   fuel,
+   partyPerson,
+   loadingPerson,
+
+   weight,
+   rate,
+
+   total : weight * rate,
+
+   createdAt :
+   new Date().toISOString()
+ };
+
+ await upsert('allLoads', id, rec);
+}
+async function saveDriver() {
+
+ const rec = {
+
+   date,
+   driverName,
+
+   status,
+
+   createdAt :
+   new Date().toISOString()
+ };
+
+ await upsert('drivers', id, rec);
 }
