@@ -11,6 +11,71 @@
 </head>
 <body>
 
+<!-- ════════ LOGIN SCREEN ════════ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-bg-shapes">
+    <div class="login-shape s1"></div>
+    <div class="login-shape s2"></div>
+    <div class="login-shape s3"></div>
+  </div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-icon"><i class="bi bi-truck-flatbed"></i></div>
+      <div class="login-brand">
+        <span class="lb-name">Sruthi</span>
+        <span class="lb-sub">Transport</span>
+      </div>
+    </div>
+    <div class="login-divider"></div>
+    <h2 class="login-title">Welcome Back</h2>
+    <p class="login-desc">Sign in to access the management system</p>
+
+    <div class="login-form">
+      <div class="lf-group">
+        <label class="lf-label"><i class="bi bi-person-fill"></i> User ID</label>
+        <input
+          type="text"
+          class="lf-input"
+          id="loginId"
+          placeholder="Enter your ID"
+          autocomplete="username"
+          onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()"
+        />
+      </div>
+      <div class="lf-group">
+        <label class="lf-label"><i class="bi bi-lock-fill"></i> Password</label>
+        <div class="lf-pw-wrap">
+          <input
+            type="password"
+            class="lf-input"
+            id="loginPass"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            onkeydown="if(event.key==='Enter') doLogin()"
+          />
+          <button class="lf-eye" onclick="togglePw()" id="eyeBtn" title="Show/hide password">
+            <i class="bi bi-eye-fill" id="eyeIcon"></i>
+          </button>
+        </div>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button class="login-btn" onclick="doLogin()" id="loginBtn">
+        <span id="loginBtnText"><i class="bi bi-box-arrow-in-right"></i> Sign In</span>
+        <span id="loginBtnSpinner" style="display:none">
+          <span class="login-spin"></span> Signing in…
+        </span>
+      </button>
+    </div>
+
+    <div class="login-footer">
+      <i class="bi bi-shield-lock-fill"></i> Secured · Sruthi Transport Management
+    </div>
+  </div>
+</div>
+
+
+<div class="app-wrap d-none" id="appWrap">
+
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <!-- ════════ SIDEBAR ════════ -->
@@ -54,6 +119,10 @@
       <i class="bi bi-circle-fill" style="font-size:8px"></i>
       <span id="dbLabel">Connecting…</span>
     </div>
+    <button class="logout-btn" onclick="doLogout()">
+      <i class="bi bi-box-arrow-left"></i>
+      <span>Logout</span>
+    </button>
   </div>
 </aside>
 
@@ -666,6 +735,12 @@
   </div>
 </div>
 
+<!-- SPINNER -->
+<div class="spinner-overlay d-none" id="spinner">
+  <div class="spin-ring"></div>
+</div>
+
+</div><!-- /app-wrap -->
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
