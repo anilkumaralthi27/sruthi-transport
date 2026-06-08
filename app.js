@@ -483,10 +483,10 @@ function refreshDash() {
 }
 
 // ── PDF Export ─────────────────────────────────────
-function exportPDF(name) {
+function exportPDF(name, customRows = null) {
   const { jsPDF } = window.jspdf;
   const doc  = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-  const rows = filtered(name);
+  const rows = customRows || filtered(name);
   const now  = new Date();
   const dateStr = now.toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
 
@@ -591,4 +591,75 @@ function toast(msg, type='ok') {
   el.style.borderLeft = `4px solid ${color}`;
   body.innerHTML = msg;
   bootstrap.Toast.getOrCreateInstance(el,{delay:3200}).show();
+}
+let pdfModule = '';
+
+function openPdfFilter(name) {
+    pdfModule = name;
+
+    new bootstrap.Modal(
+        document.getElementById('pdfModal')
+    ).show();
+}
+
+document.addEventListener('change', function(e){
+
+    if(e.target.id === 'pdfType'){
+
+        document.getElementById('customDates').style.display =
+            e.target.value === 'custom'
+            ? 'block'
+            : 'none';
+    }
+});
+function downloadFilteredPDF() {
+
+    const type = document.getElementById('pdfType').value;
+
+    let rows = filtered(pdfModule);
+
+    const today = new Date();
+
+    if(type === 'current') {
+
+        rows = rows.filter(r => {
+            const d = new Date(r.date);
+            return d.getMonth() === today.getMonth()
+                && d.getFullYear() === today.getFullYear();
+        });
+    }
+
+    else if(type === 'lastmonth') {
+
+        const lastMonth =
+            today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+
+        const year =
+            today.getMonth() === 0
+            ? today.getFullYear() - 1
+            : today.getFullYear();
+
+        rows = rows.filter(r => {
+            const d = new Date(r.date);
+
+            return d.getMonth() === lastMonth
+                && d.getFullYear() === year;
+        });
+    }
+
+    else if(type === 'custom') {
+
+        const from =
+            new Date(document.getElementById('fromDate').value);
+
+        const to =
+            new Date(document.getElementById('toDate').value);
+
+        rows = rows.filter(r => {
+            const d = new Date(r.date);
+            return d >= from && d <= to;
+        });
+    }
+
+    exportPDF(pdfModule, rows);
 }
