@@ -11,7 +11,6 @@
 </head>
 <body>
 
-<!-- SIDEBAR OVERLAY (mobile) -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <!-- ════════ SIDEBAR ════════ -->
@@ -33,20 +32,17 @@
       <i class="bi bi-cash-stack"></i><span>Credit Amount</span>
     </a>
     <a class="nav-item" data-page="pending" href="#">
-      <i class="bi bi-hourglass-split"></i><span>Spending Amount</span>
+      <i class="bi bi-wallet2"></i><span>Spending Amount</span>
     </a>
     <a class="nav-item" data-page="loads" href="#">
       <i class="bi bi-boxes"></i><span>Loads to Saburi</span>
     </a>
     <a class="nav-item" data-page="allloads" href="#">
-  <i class="bi bi-truck"></i>
-  <span>All Loads</span>
-</a>
-
-<a class="nav-item" data-page="drivers">
-  <i class="bi bi-person-badge"></i>
-  <span>Driver Attendance</span>
-</a>
+      <i class="bi bi-truck"></i><span>All Loads</span>
+    </a>
+    <a class="nav-item" data-page="drivers" href="#">
+      <i class="bi bi-person-badge"></i><span>Driver Attendance</span>
+    </a>
   </nav>
 
   <div class="sidebar-bottom">
@@ -69,11 +65,15 @@
     <button class="hamburger" id="hamburger"><i class="bi bi-list"></i></button>
     <h1 class="topbar-title" id="pageTitle">Dashboard</h1>
     <div class="topbar-right">
+      <div class="datetime-chip">
+        <div class="dt-date" id="topDate"></div>
+        <div class="dt-time" id="topTime"></div>
+      </div>
       <div class="user-chip">ST</div>
     </div>
   </header>
 
-  <!-- ───────── DASHBOARD ───────── -->
+  <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
   <section class="page active" id="page-dashboard">
     <div class="page-head">
       <div>
@@ -81,38 +81,32 @@
         <p class="page-sub">Live summary across all modules</p>
       </div>
     </div>
-
     <div class="stat-grid">
       <div class="stat-card s-amber">
         <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-        <div>
-          <div class="stat-lbl">Total Credit</div>
-          <div class="stat-val" id="d-credit">₹0.00</div>
-        </div>
+        <div><div class="stat-lbl">Total Credit</div><div class="stat-val" id="d-credit">₹0.00</div></div>
       </div>
       <div class="stat-card s-red">
-        <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-        <div>
-          <div class="stat-lbl">Total Spending</div>
-          <div class="stat-val" id="d-pending">₹0.00</div>
-        </div>
+        <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+        <div><div class="stat-lbl">Total Spending</div><div class="stat-val" id="d-pending">₹0.00</div></div>
       </div>
       <div class="stat-card s-blue">
         <div class="stat-icon"><i class="bi bi-boxes"></i></div>
-        <div>
-          <div class="stat-lbl">Total Loads</div>
-          <div class="stat-val" id="d-loads">0</div>
-        </div>
+        <div><div class="stat-lbl">Saburi Loads</div><div class="stat-val" id="d-loads">0</div></div>
       </div>
       <div class="stat-card s-green">
         <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
-        <div>
-          <div class="stat-lbl">Total Weight</div>
-          <div class="stat-val" id="d-weight">0 T</div>
-        </div>
+        <div><div class="stat-lbl">Total Weight</div><div class="stat-val" id="d-weight">0 T</div></div>
+      </div>
+      <div class="stat-card s-purple">
+        <div class="stat-icon"><i class="bi bi-truck"></i></div>
+        <div><div class="stat-lbl">All Loads</div><div class="stat-val" id="d-allloads">0</div></div>
+      </div>
+      <div class="stat-card s-teal">
+        <div class="stat-icon"><i class="bi bi-person-badge"></i></div>
+        <div><div class="stat-lbl">Present Today</div><div class="stat-val" id="d-drivers">0</div></div>
       </div>
     </div>
-
     <div class="row g-4 mt-1">
       <div class="col-lg-6">
         <div class="glass-card">
@@ -122,28 +116,22 @@
       </div>
       <div class="col-lg-6">
         <div class="glass-card">
-          <div class="gc-head"><i class="bi bi-truck"></i> Recent Loads</div>
-          <div id="d-recent-loads"></div>
+          <div class="gc-head"><i class="bi bi-truck"></i> Recent All Loads</div>
+          <div id="d-recent-allloads"></div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ───────── CREDIT AMOUNT ───────── -->
+  <!-- ═══════════════════ CREDIT AMOUNT ═══════════════════ -->
   <section class="page" id="page-credit">
     <div class="page-head">
-      <div>
-        <h2 class="page-h">Credit Amount</h2>
-        <p class="page-sub">Manage credit entries and accounts</p>
-      </div>
+      <div><h2 class="page-h">Credit Amount</h2><p class="page-sub">Manage credit entries and accounts</p></div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="openPdfFilter('credit')">
-    <i class="bi bi-file-earmark-pdf"></i> PDF
-</button>
+        <button class="btn-outline" onclick="openPdfFilter('credit')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
         <button class="btn-primary" onclick="openModal('credit')"><i class="bi bi-plus-lg"></i> Add Entry</button>
       </div>
     </div>
-
     <div class="glass-card mb-4">
       <div class="row g-3 align-items-end">
         <div class="col-md-4">
@@ -162,21 +150,14 @@
           </select>
         </div>
         <div class="col-md-5">
-          <div class="total-pill">
-            <span class="tp-lbl">Grand Total</span>
-            <span class="tp-val" id="creditTotal">₹ 0.00</span>
-          </div>
+          <div class="total-pill"><span class="tp-lbl">Grand Total</span><span class="tp-val" id="creditTotal">₹ 0.00</span></div>
         </div>
       </div>
     </div>
-
     <div class="glass-card">
       <div class="table-wrap">
         <table class="ptable">
-          <thead><tr>
-            <th>#</th><th>Company</th><th>Date</th>
-            <th>Amount</th><th>To Whom / Account</th><th>Actions</th>
-          </tr></thead>
+          <thead><tr><th>#</th><th>Company</th><th>Date</th><th>Amount</th><th>To Whom / Account</th><th>Actions</th></tr></thead>
           <tbody id="creditBody"></tbody>
         </table>
       </div>
@@ -184,44 +165,33 @@
     </div>
   </section>
 
-  <!-- ───────── SPENDING AMOUNT ───────── -->
+  <!-- ═══════════════════ SPENDING AMOUNT ═══════════════════ -->
   <section class="page" id="page-pending">
     <div class="page-head">
-      <div>
-        <h2 class="page-h">Spending Amount</h2>
-        <p class="page-sub">Track outstanding payments</p>
-      </div>
+      <div><h2 class="page-h">Spending Amount</h2><p class="page-sub">Track all expenditures and payments</p></div>
       <div class="head-actions">
         <button class="btn-outline" onclick="exportPDF('pending')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
         <button class="btn-primary" onclick="openModal('pending')"><i class="bi bi-plus-lg"></i> Add Entry</button>
       </div>
     </div>
-
     <div class="glass-card mb-4">
       <div class="row g-3 align-items-end">
-        <div class="col-md-5">
+        <div class="col-md-6">
           <label class="flabel">Search</label>
           <div class="search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" class="finput" id="pendingSearch" placeholder="Name, reason…" oninput="filterAndRender('pending')"/>
           </div>
         </div>
-        <div class="col-md-4 offset-md-3">
-          <div class="total-pill tp-red">
-            <span class="tp-lbl">Total Spending</span>
-            <span class="tp-val" id="pendingTotal">₹ 0.00</span>
-          </div>
+        <div class="col-md-4 offset-md-2">
+          <div class="total-pill tp-red"><span class="tp-lbl">Total Spending</span><span class="tp-val" id="pendingTotal">₹ 0.00</span></div>
         </div>
       </div>
     </div>
-
     <div class="glass-card">
       <div class="table-wrap">
         <table class="ptable">
-          <thead><tr>
-            <th>#</th><th>Name</th><th>Amount</th>
-            <th>Date</th><th>Reason</th><th>Actions</th>
-          </tr></thead>
+          <thead><tr><th>#</th><th>Name</th><th>Amount</th><th>Date</th><th>Reason</th><th>Actions</th></tr></thead>
           <tbody id="pendingBody"></tbody>
         </table>
       </div>
@@ -229,19 +199,15 @@
     </div>
   </section>
 
-  <!-- ───────── LOADS TO SABURI ───────── -->
+  <!-- ═══════════════════ LOADS TO SABURI ═══════════════════ -->
   <section class="page" id="page-loads">
     <div class="page-head">
-      <div>
-        <h2 class="page-h">Loads to Saburi</h2>
-        <p class="page-sub">Vehicle dispatch and freight records</p>
-      </div>
+      <div><h2 class="page-h">Loads to Saburi</h2><p class="page-sub">Vehicle dispatch and freight records</p></div>
       <div class="head-actions">
         <button class="btn-outline" onclick="exportPDF('loads')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
         <button class="btn-primary" onclick="openModal('loads')"><i class="bi bi-plus-lg"></i> Add Load</button>
       </div>
     </div>
-
     <div class="glass-card mb-4">
       <div class="row g-3 align-items-end">
         <div class="col-md-4">
@@ -252,115 +218,115 @@
           </div>
         </div>
         <div class="col-md-4">
-          <div class="total-pill tp-blue">
-            <span class="tp-lbl">Total Weight</span>
-            <span class="tp-val" id="loadsTotalW">0 T</span>
-          </div>
+          <div class="total-pill tp-blue"><span class="tp-lbl">Total Weight</span><span class="tp-val" id="loadsTotalW">0 T</span></div>
         </div>
         <div class="col-md-4">
-          <div class="total-pill">
-            <span class="tp-lbl">Total Amount</span>
-            <span class="tp-val" id="loadsTotalA">₹ 0.00</span>
-          </div>
+          <div class="total-pill"><span class="tp-lbl">Total Amount</span><span class="tp-val" id="loadsTotalA">₹ 0.00</span></div>
         </div>
       </div>
     </div>
-
     <div class="glass-card">
       <div class="table-wrap">
         <table class="ptable">
-          <thead><tr>
-            <th>#</th><th>Date</th><th>Vehicle No.</th>
-            <th>Weight (T)</th><th>Rate/Ton (₹)</th><th>Total (₹)</th><th>Actions</th>
-          </tr></thead>
+          <thead><tr><th>#</th><th>Date</th><th>Vehicle No.</th><th>Weight (T)</th><th>Rate/Ton (₹)</th><th>Total (₹)</th><th>Actions</th></tr></thead>
           <tbody id="loadsBody"></tbody>
         </table>
       </div>
       <div class="pgbar" id="loadsPg"></div>
     </div>
   </section>
-  <!-- for all loads  -->
-<section class="page" id="page-allloads">
 
-<div class="page-head">
-<h2 class="page-h">All Loads</h2>
+  <!-- ═══════════════════ ALL LOADS ═══════════════════ -->
+  <section class="page" id="page-allloads">
+    <div class="page-head">
+      <div><h2 class="page-h">All Loads</h2><p class="page-sub">Complete load records with driver and route details</p></div>
+      <div class="head-actions">
+        <button class="btn-outline" onclick="exportPDF('allLoads')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-primary" onclick="openModal('allLoads')"><i class="bi bi-plus-lg"></i> Add Load</button>
+      </div>
+    </div>
+    <div class="glass-card mb-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="flabel">Search</label>
+          <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" class="finput" id="allLoadsSearch" placeholder="Vehicle, driver, place…" oninput="filterAndRender('allLoads')"/>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="total-pill tp-purple"><span class="tp-lbl">Total Weight</span><span class="tp-val" id="allLoadsTotalW">0 T</span></div>
+        </div>
+        <div class="col-md-3">
+          <div class="total-pill"><span class="tp-lbl">Total Amount</span><span class="tp-val" id="allLoadsTotalA">₹ 0.00</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div class="table-wrap">
+        <table class="ptable">
+          <thead><tr>
+            <th>#</th><th>Date</th><th>Vehicle</th><th>Driver</th>
+            <th>From</th><th>To</th><th>Weight (T)</th><th>Total (₹)</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="allLoadsBody"></tbody>
+        </table>
+      </div>
+      <div class="pgbar" id="allLoadsPg"></div>
+    </div>
+  </section>
 
-<button class="btn-primary"
-onclick="openModal('allLoads')">
-Add Load
-</button>
-</div>
+  <!-- ═══════════════════ DRIVER ATTENDANCE ═══════════════════ -->
+  <section class="page" id="page-drivers">
+    <div class="page-head">
+      <div><h2 class="page-h">Driver Attendance</h2><p class="page-sub">Daily driver attendance and availability tracking</p></div>
+      <div class="head-actions">
+        <button class="btn-outline" onclick="exportPDF('drivers')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-primary" onclick="openModal('drivers')"><i class="bi bi-plus-lg"></i> Add Attendance</button>
+      </div>
+    </div>
+    <div class="glass-card mb-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="flabel">Search</label>
+          <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" class="finput" id="driversSearch" placeholder="Driver name, status…" oninput="filterAndRender('drivers')"/>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="flabel">Filter Status</label>
+          <select class="fselect" id="driverStatusFilter" onchange="filterAndRender('drivers')">
+            <option value="">All</option>
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+            <option value="Available No Load">Available No Load</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <div class="att-badge present-badge"><span id="countPresent">0</span><span class="att-lbl">Present</span></div>
+        </div>
+        <div class="col-md-2">
+          <div class="att-badge absent-badge"><span id="countAbsent">0</span><span class="att-lbl">Absent</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div class="table-wrap">
+        <table class="ptable">
+          <thead><tr><th>#</th><th>Date</th><th>Driver Name</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="driversBody"></tbody>
+        </table>
+      </div>
+      <div class="pgbar" id="driversPg"></div>
+    </div>
+  </section>
 
-<div class="glass-card">
-
-<input
-id="allLoadsSearch"
-class="finput"
-placeholder="Search..."
-oninput="filterAndRender('allLoads')">
-
-<table class="ptable">
-
-<thead>
-<tr>
-<th>Date</th>
-<th>Vehicle</th>
-<th>Driver</th>
-<th>Weight</th>
-<th>Total</th>
-</tr>
-</thead>
-
-<tbody id="allLoadsBody"></tbody>
-
-</table>
-
-</div>
-
-</section>
-  <!-- for drivers -->
-<section class="page" id="page-drivers">
-
-<div class="page-head">
-<h2 class="page-h">
-Driver Attendance
-</h2>
-
-<button class="btn-primary"
-onclick="openModal('drivers')">
-Add Attendance
-</button>
-</div>
-
-<div class="glass-card">
-
-<input
-id="driversSearch"
-class="finput"
-placeholder="Search Driver"
-oninput="filterAndRender('drivers')">
-
-<table class="ptable">
-
-<thead>
-<tr>
-<th>Date</th>
-<th>Driver</th>
-<th>Status</th>
-</tr>
-</thead>
-
-<tbody id="driversBody"></tbody>
-
-</table>
-
-</div>
-
-</section>
 </div><!-- /main-wrap -->
 
+<!-- ═══════════════════ MODALS ═══════════════════ -->
 
-<!-- ═══════ MODAL — CREDIT ═══════ -->
+<!-- CREDIT MODAL -->
 <div class="modal fade" id="creditModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content mpanel">
@@ -370,25 +336,29 @@ oninput="filterAndRender('drivers')">
       </div>
       <div class="mbody">
         <input type="hidden" id="creditId"/>
-        <div class="fgroup">
-          <label class="flabel">Company Name <span class="req">*</span></label>
-          <select class="fselect" id="fCreditCo">
-            <option value="">Select…</option>
-            <option value="Saburi">Saburi</option>
-            <option value="Others">Others</option>
-          </select>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Company Name <span class="req">*</span></label>
+            <select class="fselect" id="fCreditCo">
+              <option value="">Select…</option>
+              <option value="Saburi">Saburi</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Date <span class="req">*</span></label>
+            <input type="date" class="finput" id="fCreditDate"/>
+          </div>
         </div>
-        <div class="fgroup">
-          <label class="flabel">Date <span class="req">*</span></label>
-          <input type="date" class="finput" id="fCreditDate"/>
-        </div>
-        <div class="fgroup">
-          <label class="flabel">Amount (₹) <span class="req">*</span></label>
-          <input type="number" class="finput" id="fCreditAmt" placeholder="0.00" min="0" step="0.01"/>
-        </div>
-        <div class="fgroup">
-          <label class="flabel">To Whom / Account <span class="req">*</span></label>
-          <input type="text" class="finput" id="fCreditAcc" placeholder="Recipient name or account"/>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Amount (₹) <span class="req">*</span></label>
+            <input type="number" class="finput" id="fCreditAmt" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">To Whom / Account <span class="req">*</span></label>
+            <input type="text" class="finput" id="fCreditAcc" placeholder="Recipient name"/>
+          </div>
         </div>
       </div>
       <div class="mfoot">
@@ -399,31 +369,35 @@ oninput="filterAndRender('drivers')">
   </div>
 </div>
 
-<!-- ═══════ MODAL — PENDING ═══════ -->
+<!-- SPENDING MODAL -->
 <div class="modal fade" id="pendingModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content mpanel">
       <div class="mhead">
-        <h5><i class="bi bi-hourglass-split"></i> <span id="pendingModalTitle">Add Spending Entry</span></h5>
+        <h5><i class="bi bi-wallet2"></i> <span id="pendingModalTitle">Add Spending Entry</span></h5>
         <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="mbody">
         <input type="hidden" id="pendingId"/>
-        <div class="fgroup">
-          <label class="flabel">Name <span class="req">*</span></label>
-          <input type="text" class="finput" id="fPendName" placeholder="Person or company"/>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Name <span class="req">*</span></label>
+            <input type="text" class="finput" id="fPendName" placeholder="Person or company"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Amount (₹) <span class="req">*</span></label>
+            <input type="number" class="finput" id="fPendAmt" placeholder="0.00" min="0" step="0.01"/>
+          </div>
         </div>
-        <div class="fgroup">
-          <label class="flabel">Amount (₹) <span class="req">*</span></label>
-          <input type="number" class="finput" id="fPendAmt" placeholder="0.00" min="0" step="0.01"/>
-        </div>
-        <div class="fgroup">
-          <label class="flabel">Date <span class="req">*</span></label>
-          <input type="date" class="finput" id="fPendDate"/>
-        </div>
-        <div class="fgroup">
-          <label class="flabel">Reason <span class="req">*</span></label>
-          <textarea class="finput" id="fPendReason" rows="3" placeholder="Describe the reason…"></textarea>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Date <span class="req">*</span></label>
+            <input type="date" class="finput" id="fPendDate"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Reason <span class="req">*</span></label>
+            <input type="text" class="finput" id="fPendReason" placeholder="Reason for spending"/>
+          </div>
         </div>
       </div>
       <div class="mfoot">
@@ -434,7 +408,7 @@ oninput="filterAndRender('drivers')">
   </div>
 </div>
 
-<!-- ═══════ MODAL — LOADS ═══════ -->
+<!-- LOADS TO SABURI MODAL -->
 <div class="modal fade" id="loadsModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content mpanel">
@@ -444,21 +418,25 @@ oninput="filterAndRender('drivers')">
       </div>
       <div class="mbody">
         <input type="hidden" id="loadsId"/>
-        <div class="fgroup">
-          <label class="flabel">Date <span class="req">*</span></label>
-          <input type="date" class="finput" id="fLoadsDate"/>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Date <span class="req">*</span></label>
+            <input type="date" class="finput" id="fLoadsDate"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Vehicle Number <span class="req">*</span></label>
+            <input type="text" class="finput" id="fLoadsVeh" placeholder="e.g. TS09AB1234" style="text-transform:uppercase"/>
+          </div>
         </div>
-        <div class="fgroup">
-          <label class="flabel">Vehicle Number <span class="req">*</span></label>
-          <input type="text" class="finput" id="fLoadsVeh" placeholder="e.g. TS09AB1234" style="text-transform:uppercase"/>
-        </div>
-        <div class="fgroup">
-          <label class="flabel">Weight (Tonnes) <span class="req">*</span></label>
-          <input type="number" class="finput" id="fLoadsWt" placeholder="0.00" min="0" step="0.01" oninput="calcTotal()"/>
-        </div>
-        <div class="fgroup">
-          <label class="flabel">Rate per Ton (₹) <span class="req">*</span></label>
-          <input type="number" class="finput" id="fLoadsRate" placeholder="0.00" min="0" step="0.01" oninput="calcTotal()"/>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Weight (Tonnes) <span class="req">*</span></label>
+            <input type="number" class="finput" id="fLoadsWt" placeholder="0.00" min="0" step="0.01" oninput="calcTotal()"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Rate per Ton (₹) <span class="req">*</span></label>
+            <input type="number" class="finput" id="fLoadsRate" placeholder="0.00" min="0" step="0.01" oninput="calcTotal()"/>
+          </div>
         </div>
         <div class="calc-box">
           <span><i class="bi bi-calculator"></i> Calculated Total</span>
@@ -473,109 +451,125 @@ oninput="filterAndRender('drivers')">
   </div>
 </div>
 
-<!-- ═══════ MODAL — DELETE CONFIRM ═══════ -->
+<!-- ALL LOADS MODAL -->
 <div class="modal fade" id="allLoadsModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content mpanel">
-
       <div class="mhead">
-        <h5>All Loads Entry</h5>
+        <h5><i class="bi bi-truck"></i> <span id="allLoadsModalTitle">Add Load Entry</span></h5>
+        <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
       </div>
-
       <div class="mbody">
-
-        <input type="date" id="fAllDate" class="finput">
-
-        <input type="text" id="fAllVehicle" class="finput"
-               placeholder="Vehicle Number">
-
-        <input type="text" id="fDriverName" class="finput"
-               placeholder="Driver Name">
-
-        <input type="text" id="fDriverBeta" class="finput"
-               placeholder="Driver Beta">
-
-        <input type="text" id="fFromPlace" class="finput"
-               placeholder="From Place">
-
-        <input type="text" id="fToPlace" class="finput"
-               placeholder="To Place">
-
-        <input type="number" id="fFuel" class="finput"
-               placeholder="Fuel">
-
-        <input type="text" id="fPartyPerson" class="finput"
-               placeholder="Party Person">
-
-        <input type="text" id="fLoadingPerson" class="finput"
-               placeholder="Loading Person">
-
-        <input type="number" id="fWeight" class="finput"
-               placeholder="Weight">
-
-        <input type="number" id="fRate" class="finput"
-               placeholder="Amount Per Ton">
-
+        <input type="hidden" id="allLoadsId"/>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Date <span class="req">*</span></label>
+            <input type="date" class="finput" id="fAllDate"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Vehicle Number <span class="req">*</span></label>
+            <input type="text" class="finput" id="fAllVehicle" placeholder="e.g. TS09AB1234" style="text-transform:uppercase"/>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Driver Name <span class="req">*</span></label>
+            <input type="text" class="finput" id="fDriverName" placeholder="Driver full name"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Driver Beta (₹)</label>
+            <input type="number" class="finput" id="fDriverBeta" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">From Place <span class="req">*</span></label>
+            <input type="text" class="finput" id="fFromPlace" placeholder="Loading location"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">To Place <span class="req">*</span></label>
+            <input type="text" class="finput" id="fToPlace" placeholder="Delivery location"/>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Fuel (Ltr)</label>
+            <input type="number" class="finput" id="fFuel" placeholder="0" min="0" step="0.01"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Party Person</label>
+            <input type="text" class="finput" id="fPartyPerson" placeholder="Party contact name"/>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Loading Person</label>
+            <input type="text" class="finput" id="fLoadingPerson" placeholder="Loading supervisor"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Weight (Tonnes) <span class="req">*</span></label>
+            <input type="number" class="finput" id="fAllWeight" placeholder="0.00" min="0" step="0.01" oninput="calcAllTotal()"/>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Rate per Ton (₹) <span class="req">*</span></label>
+            <input type="number" class="finput" id="fAllRate" placeholder="0.00" min="0" step="0.01" oninput="calcAllTotal()"/>
+          </div>
+          <div class="fgroup" style="display:flex;align-items:flex-end">
+            <div class="calc-box w-100">
+              <span><i class="bi bi-calculator"></i> Total</span>
+              <span class="calc-val" id="calcAllResult">₹ 0.00</span>
+            </div>
+          </div>
+        </div>
       </div>
-
       <div class="mfoot">
-        <button class="btn-primary"
-                onclick="saveAllLoad()">
-          Save
-        </button>
+        <button class="btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary" onclick="saveAllLoad()"><i class="bi bi-check-lg"></i> Save Load</button>
       </div>
-
     </div>
   </div>
 </div>
 
-  <div class="modal fade" id="driversModal" tabindex="-1">
-
-  <div class="modal-dialog">
-
+<!-- DRIVER ATTENDANCE MODAL -->
+<div class="modal fade" id="driversModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content mpanel">
-
       <div class="mhead">
-        <h5>Driver Attendance</h5>
+        <h5><i class="bi bi-person-badge"></i> <span id="driversModalTitle">Add Attendance</span></h5>
+        <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
       </div>
-
       <div class="mbody">
-
-        <input type="date"
-               id="fDriverDate"
-               class="finput">
-
-        <input type="text"
-               id="fDriverName2"
-               class="finput"
-               placeholder="Driver Name">
-
-        <select id="fDriverStatus"
-                class="fselect">
-
-          <option>Present</option>
-          <option>Absent</option>
-          <option>Available No Load</option>
-
-        </select>
-
+        <input type="hidden" id="driversId"/>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Date <span class="req">*</span></label>
+            <input type="date" class="finput" id="fDriverDate"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Driver Name <span class="req">*</span></label>
+            <input type="text" class="finput" id="fDriverName2" placeholder="Driver full name"/>
+          </div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Status <span class="req">*</span></label>
+          <select class="fselect" id="fDriverStatus">
+            <option value="Present">✅ Present</option>
+            <option value="Absent">❌ Absent</option>
+            <option value="Available No Load">🔵 Available No Load</option>
+          </select>
+        </div>
       </div>
-
       <div class="mfoot">
-
-        <button class="btn-primary"
-                onclick="saveDriver()">
-          Save
-        </button>
-
+        <button class="btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary" onclick="saveDriver()"><i class="bi bi-check-lg"></i> Save</button>
       </div>
-
     </div>
-
   </div>
-
 </div>
-  
+
+<!-- DELETE CONFIRM MODAL -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content mpanel">
@@ -594,59 +588,57 @@ oninput="filterAndRender('drivers')">
   </div>
 </div>
 
+<!-- PDF FILTER MODAL -->
+<div class="modal fade" id="pdfModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content mpanel">
+      <div class="mhead">
+        <h5><i class="bi bi-file-earmark-pdf"></i> Export PDF</h5>
+        <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="mbody">
+        <div class="fgroup">
+          <label class="flabel">Date Range</label>
+          <select class="fselect" id="pdfType" onchange="toggleCustomDates()">
+            <option value="all">All Records</option>
+            <option value="current">Current Month</option>
+            <option value="lastmonth">Last Month</option>
+            <option value="custom">Custom Date Range</option>
+          </select>
+        </div>
+        <div id="customDates" style="display:none">
+          <div class="frow2">
+            <div class="fgroup">
+              <label class="flabel">From Date</label>
+              <input type="date" class="finput" id="fromDate"/>
+            </div>
+            <div class="fgroup">
+              <label class="flabel">To Date</label>
+              <input type="date" class="finput" id="toDate"/>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary" onclick="downloadFilteredPDF()"><i class="bi bi-download"></i> Download PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
   <div id="toast" class="toast toast-custom" role="alert">
     <div class="toast-body" id="toastBody"></div>
   </div>
 </div>
-<!-- PDF Model Popup -->
-<div class="modal fade" id="pdfModal">
-  <div class="modal-dialog">
-    <div class="modal-content">
 
-      <div class="modal-header">
-        <h5>Select PDF Filter</h5>
-      </div>
-
-      <div class="modal-body">
-
-        <select class="form-control" id="pdfType">
-          <option value="current">Current Month</option>
-          <option value="lastmonth">Last Month</option>
-          <option value="all">Whole Data</option>
-          <option value="custom">Custom Date Range</option>
-        </select>
-
-        <div id="customDates" style="display:none;margin-top:15px;">
-          <label>From Date</label>
-          <input type="date" id="fromDate" class="form-control">
-
-          <label class="mt-2">To Date</label>
-          <input type="date" id="toDate" class="form-control">
-        </div>
-
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-primary" onclick="downloadFilteredPDF()">
-          Download PDF
-        </button>
-      </div>
-
-    </div>
-  </div>
+<!-- SPINNER -->
+<div class="spinner-overlay d-none" id="spinner">
+  <div class="spin-ring"></div>
 </div>
-<select id="fDriverStatus">
 
-<option>Present</option>
-
-<option>Absent</option>
-
-<option>Available No Load</option>
-
-</select>
-<!-- Scripts -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
