@@ -519,6 +519,9 @@ function goPage(name,p) {
 // ── Dashboard ─────────────────────────────────────────
 function refreshDash() {
   set('d-credit',  '₹ '+fmt(data.credit.reduce((s,r)=>s+(+r.amount||0),0)));
+  // Saburi loads amount (from loads collection where all are Saburi)
+  const saburiAmt = data.loads.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
+  set('d-saburi-amt','₹ '+fmt(saburiAmt));
   set('d-pending', '₹ '+fmt(data.pending.reduce((s,r)=>s+(+r.amount||0),0)));
   set('d-loads',   data.loads.length);
   set('d-weight',  data.loads.reduce((s,r)=>s+(+r.weight||0),0).toFixed(2)+' T');
@@ -550,31 +553,61 @@ function refreshDash() {
 // ── PDF Filter ────────────────────────────────────────
 function openPdfFilter(name) {
   pdfModule = name;
-  document.getElementById('pdfType').value = 'all';
-  document.getElementById('customDates').style.display = 'none';
+  // Set modal label
+  const labels = {
+    credit:'Credit Amount', pending:'Spending Amount',
+    loads:'Loads to Saburi', allLoads:'All Loads', drivers:'Driver Attendance'
+  };
+  const lbl = document.getElementById('pdfModalLabel');
+  if(lbl) lbl.textContent = labels[name] || name;
+  // Reset to current month selected
+  document.querySelectorAll('.pdf-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.val === 'current');
+  });
+  document.getElementById('customDates').classList.remove('show');
   new bootstrap.Modal(document.getElementById('pdfModal')).show();
 }
 
-function toggleCustomDates() {
-  document.getElementById('customDates').style.display =
-    document.getElementById('pdfType').value === 'custom' ? 'block' : 'none';
+function selectPdfOpt(el) {
+  document.querySelectorAll('.pdf-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  const cd = document.getElementById('customDates');
+  if(el.dataset.val === 'custom') cd.classList.add('show');
+  else cd.classList.remove('show');
 }
 
+// toggleCustomDates replaced by selectPdfOpt card UI
+
 function downloadFilteredPDF() {
-  const type = document.getElementById('pdfType').value;
+  // Read selected card value
+  const selected = document.querySelector('.pdf-opt.selected');
+  const type = selected ? selected.dataset.val : 'all';
   let rows = filtered(pdfModule);
   const now = new Date();
-  if(type==='current') {
-    rows=rows.filter(r=>{ const d=new Date(r.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
-  } else if(type==='lastmonth') {
-    const lm=now.getMonth()===0?11:now.getMonth()-1, ly=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
-    rows=rows.filter(r=>{ const d=new Date(r.date); return d.getMonth()===lm&&d.getFullYear()===ly; });
-  } else if(type==='custom') {
-    const from=new Date(document.getElementById('fromDate').value);
-    const to  =new Date(document.getElementById('toDate').value);
-    if(!from||!to) { toast('⚠️ Select both dates','warn'); return; }
-    rows=rows.filter(r=>{ const d=new Date(r.date); return d>=from&&d<=to; });
+
+  if(type === 'current') {
+    rows = rows.filter(r => {
+      const d = new Date(r.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+  } else if(type === 'lastmonth') {
+    const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    rows = rows.filter(r => {
+      const d = new Date(r.date);
+      return d.getMonth() === lm && d.getFullYear() === ly;
+    });
+  } else if(type === 'custom') {
+    const fv = document.getElementById('fromDate').value;
+    const tv = document.getElementById('toDate').value;
+    if(!fv || !tv) { toast('⚠️ Select both From and To dates','warn'); return; }
+    const from = new Date(fv);
+    const to   = new Date(tv); to.setHours(23,59,59);
+    rows = rows.filter(r => { const d = new Date(r.date); return d >= from && d <= to; });
   }
+  // all = no filter
+
+  if(!rows.length) { toast('⚠️ No records found for selected range','warn'); return; }
   bootstrap.Modal.getInstance(document.getElementById('pdfModal'))?.hide();
   exportPDF(pdfModule, rows);
 }
