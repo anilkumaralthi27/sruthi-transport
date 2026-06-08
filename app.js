@@ -10,7 +10,8 @@ let db = null;
 let useLS = false;   // true = localStorage fallback
 let delCb = null;    // delete callback
 
-const data = { credit: [], pending: [], loads: [] };
+const data = { credit: [], pending: [], loads: [], allLoads: [],
+  drivers: [] };
 const pg   = {
   credit:  { cur: 1, per: 8, list: [] },
   pending: { cur: 1, per: 8, list: [] },
