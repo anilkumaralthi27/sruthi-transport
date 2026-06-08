@@ -81,30 +81,48 @@
         <p class="page-sub">Live summary across all modules</p>
       </div>
     </div>
-    <div class="stat-grid">
-      <div class="stat-card s-amber">
-        <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-        <div><div class="stat-lbl">Total Credit</div><div class="stat-val" id="d-credit">₹0.00</div></div>
+    <div class="row g-3 dash-cards">
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="stat-card s-amber h-100">
+          <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+          <div><div class="stat-lbl">Total Credit</div><div class="stat-val" id="d-credit">₹0.00</div></div>
+        </div>
       </div>
-      <div class="stat-card s-red">
-        <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
-        <div><div class="stat-lbl">Total Spending</div><div class="stat-val" id="d-pending">₹0.00</div></div>
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="stat-card s-red h-100">
+          <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+          <div><div class="stat-lbl">Total Spending</div><div class="stat-val" id="d-pending">₹0.00</div></div>
+        </div>
       </div>
-      <div class="stat-card s-blue">
-        <div class="stat-icon"><i class="bi bi-boxes"></i></div>
-        <div><div class="stat-lbl">Saburi Loads</div><div class="stat-val" id="d-loads">0</div></div>
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="stat-card s-blue h-100">
+          <div class="stat-icon"><i class="bi bi-boxes"></i></div>
+          <div><div class="stat-lbl">Saburi Loads</div><div class="stat-val" id="d-loads">0</div></div>
+        </div>
       </div>
-      <div class="stat-card s-green">
-        <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
-        <div><div class="stat-lbl">Total Weight</div><div class="stat-val" id="d-weight">0 T</div></div>
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="stat-card s-indigo h-100">
+          <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+          <div><div class="stat-lbl">Saburi Amount</div><div class="stat-val" id="d-saburi-amt">₹0.00</div></div>
+        </div>
       </div>
-      <div class="stat-card s-purple">
-        <div class="stat-icon"><i class="bi bi-truck"></i></div>
-        <div><div class="stat-lbl">All Loads</div><div class="stat-val" id="d-allloads">0</div></div>
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="stat-card s-green h-100">
+          <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
+          <div><div class="stat-lbl">Total Weight</div><div class="stat-val" id="d-weight">0 T</div></div>
+        </div>
       </div>
-      <div class="stat-card s-teal">
-        <div class="stat-icon"><i class="bi bi-person-badge"></i></div>
-        <div><div class="stat-lbl">Present Today</div><div class="stat-val" id="d-drivers">0</div></div>
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="stat-card s-purple h-100">
+          <div class="stat-icon"><i class="bi bi-truck"></i></div>
+          <div><div class="stat-lbl">All Loads</div><div class="stat-val" id="d-allloads">0</div></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="stat-card s-teal h-100">
+          <div class="stat-icon"><i class="bi bi-person-badge"></i></div>
+          <div><div class="stat-lbl">Present Today</div><div class="stat-val" id="d-drivers">0</div></div>
+        </div>
       </div>
     </div>
     <div class="row g-4 mt-1">
@@ -170,7 +188,7 @@
     <div class="page-head">
       <div><h2 class="page-h">Spending Amount</h2><p class="page-sub">Track all expenditures and payments</p></div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="exportPDF('pending')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-outline" onclick="openPdfFilter('pending')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
         <button class="btn-primary" onclick="openModal('pending')"><i class="bi bi-plus-lg"></i> Add Entry</button>
       </div>
     </div>
@@ -204,7 +222,7 @@
     <div class="page-head">
       <div><h2 class="page-h">Loads to Saburi</h2><p class="page-sub">Vehicle dispatch and freight records</p></div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="exportPDF('loads')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-outline" onclick="openPdfFilter('loads')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
         <button class="btn-primary" onclick="openModal('loads')"><i class="bi bi-plus-lg"></i> Add Load</button>
       </div>
     </div>
@@ -241,7 +259,7 @@
     <div class="page-head">
       <div><h2 class="page-h">All Loads</h2><p class="page-sub">Complete load records with driver and route details</p></div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="exportPDF('allLoads')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-outline" onclick="openPdfFilter('allLoads')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
         <button class="btn-primary" onclick="openModal('allLoads')"><i class="bi bi-plus-lg"></i> Add Load</button>
       </div>
     </div>
@@ -281,7 +299,7 @@
     <div class="page-head">
       <div><h2 class="page-h">Driver Attendance</h2><p class="page-sub">Daily driver attendance and availability tracking</p></div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="exportPDF('drivers')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-outline" onclick="openPdfFilter('drivers')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
         <button class="btn-primary" onclick="openModal('drivers')"><i class="bi bi-plus-lg"></i> Add Attendance</button>
       </div>
     </div>
@@ -593,20 +611,34 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content mpanel">
       <div class="mhead">
-        <h5><i class="bi bi-file-earmark-pdf"></i> Export PDF</h5>
+        <h5><i class="bi bi-file-earmark-pdf"></i> Export PDF — <span id="pdfModalLabel" style="color:var(--amber);font-weight:600"></span></h5>
         <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="mbody">
-        <div class="fgroup">
-          <label class="flabel">Date Range</label>
-          <select class="fselect" id="pdfType" onchange="toggleCustomDates()">
-            <option value="all">All Records</option>
-            <option value="current">Current Month</option>
-            <option value="lastmonth">Last Month</option>
-            <option value="custom">Custom Date Range</option>
-          </select>
+        <p class="flabel mb-3">Select date range</p>
+        <div class="pdf-options">
+          <div class="pdf-opt selected" data-val="current" onclick="selectPdfOpt(this)">
+            <i class="bi bi-calendar-check"></i>
+            <div class="pdf-opt-lbl">Current Month</div>
+            <div class="pdf-opt-sub">This month only</div>
+          </div>
+          <div class="pdf-opt" data-val="lastmonth" onclick="selectPdfOpt(this)">
+            <i class="bi bi-calendar-minus"></i>
+            <div class="pdf-opt-lbl">Last Month</div>
+            <div class="pdf-opt-sub">Previous month</div>
+          </div>
+          <div class="pdf-opt" data-val="all" onclick="selectPdfOpt(this)">
+            <i class="bi bi-calendar3"></i>
+            <div class="pdf-opt-lbl">All Records</div>
+            <div class="pdf-opt-sub">Complete history</div>
+          </div>
+          <div class="pdf-opt" data-val="custom" onclick="selectPdfOpt(this)">
+            <i class="bi bi-calendar-range"></i>
+            <div class="pdf-opt-lbl">Custom Range</div>
+            <div class="pdf-opt-sub">Pick any dates</div>
+          </div>
         </div>
-        <div id="customDates" style="display:none">
+        <div class="custom-range" id="customDates">
           <div class="frow2">
             <div class="fgroup">
               <label class="flabel">From Date</label>
@@ -633,7 +665,6 @@
     <div class="toast-body" id="toastBody"></div>
   </div>
 </div>
-
 
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
