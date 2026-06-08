@@ -231,82 +231,6 @@
 
   <!-- ───────── LOADS TO SABURI ───────── -->
   <section class="page" id="page-loads">
-    <section class="page" id="page-allloads">
-
-<div class="page-head">
-<h2 class="page-h">All Loads</h2>
-
-<button class="btn-primary"
-onclick="openModal('allLoads')">
-Add Load
-</button>
-</div>
-
-<div class="glass-card">
-
-<input
-id="allLoadsSearch"
-class="finput"
-placeholder="Search..."
-oninput="filterAndRender('allLoads')">
-
-<table class="ptable">
-
-<thead>
-<tr>
-<th>Date</th>
-<th>Vehicle</th>
-<th>Driver</th>
-<th>Weight</th>
-<th>Total</th>
-</tr>
-</thead>
-
-<tbody id="allLoadsBody"></tbody>
-
-</table>
-
-</div>
-
-</section>
-    <section class="page" id="page-drivers">
-
-<div class="page-head">
-<h2 class="page-h">
-Driver Attendance
-</h2>
-
-<button class="btn-primary"
-onclick="openModal('drivers')">
-Add Attendance
-</button>
-</div>
-
-<div class="glass-card">
-
-<input
-id="driversSearch"
-class="finput"
-placeholder="Search Driver"
-oninput="filterAndRender('drivers')">
-
-<table class="ptable">
-
-<thead>
-<tr>
-<th>Date</th>
-<th>Driver</th>
-<th>Status</th>
-</tr>
-</thead>
-
-<tbody id="driversBody"></tbody>
-
-</table>
-
-</div>
-
-</section>
     <div class="page-head">
       <div>
         <h2 class="page-h">Loads to Saburi</h2>
@@ -355,7 +279,135 @@ oninput="filterAndRender('drivers')">
       <div class="pgbar" id="loadsPg"></div>
     </div>
   </section>
+  <!-- for all loads  -->
+<div class="modal fade" id="allLoadsModal">
+<div class="modal-dialog modal-lg">
+<div class="modal-content mpanel">
 
+<div class="mhead">
+<h5>All Loads Entry</h5>
+</div>
+
+<div class="mbody">
+
+<input type="date" id="fAllDate" class="finput">
+
+<input type="text"
+id="fAllVehicle"
+class="finput"
+placeholder="Vehicle Number">
+
+<input type="text"
+id="fDriverName"
+class="finput"
+placeholder="Driver Name">
+
+<input type="text"
+id="fDriverBeta"
+class="finput"
+placeholder="Driver Beta">
+
+<input type="text"
+id="fFromPlace"
+class="finput"
+placeholder="From Place">
+
+<input type="text"
+id="fToPlace"
+class="finput"
+placeholder="To Place">
+
+<input type="number"
+id="fFuel"
+class="finput"
+placeholder="Fuel">
+
+<input type="text"
+id="fPartyPerson"
+class="finput"
+placeholder="Party Person">
+
+<input type="text"
+id="fLoadingPerson"
+class="finput"
+placeholder="Loading Person">
+
+<input type="number"
+id="fWeight"
+class="finput"
+placeholder="Weight">
+
+<input type="number"
+id="fRate"
+class="finput"
+placeholder="Rate">
+
+</div>
+
+<div class="mfoot">
+<button
+class="btn-primary"
+onclick="saveAllLoad()">
+Save
+</button>
+</div>
+
+</div>
+</div>
+</div>
+  <!-- for drivers -->
+  <div class="modal fade" id="driversModal">
+
+<div class="modal-dialog">
+
+<div class="modal-content mpanel">
+
+<div class="mhead">
+<h5>Driver Attendance</h5>
+</div>
+
+<div class="mbody">
+
+<input
+type="date"
+id="fDriverDate"
+class="finput">
+
+<input
+type="text"
+id="fDriverName2"
+class="finput"
+placeholder="Driver Name">
+
+<select
+id="fDriverStatus"
+class="fselect">
+
+<option>Present</option>
+
+<option>Absent</option>
+
+<option>Available No Load</option>
+
+</select>
+
+</div>
+
+<div class="mfoot">
+
+<button
+class="btn-primary"
+onclick="saveDriver()">
+Save
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
 </div><!-- /main-wrap -->
 
 
