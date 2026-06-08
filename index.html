@@ -474,6 +474,108 @@ oninput="filterAndRender('drivers')">
 </div>
 
 <!-- ═══════ MODAL — DELETE CONFIRM ═══════ -->
+<div class="modal fade" id="allLoadsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content mpanel">
+
+      <div class="mhead">
+        <h5>All Loads Entry</h5>
+      </div>
+
+      <div class="mbody">
+
+        <input type="date" id="fAllDate" class="finput">
+
+        <input type="text" id="fAllVehicle" class="finput"
+               placeholder="Vehicle Number">
+
+        <input type="text" id="fDriverName" class="finput"
+               placeholder="Driver Name">
+
+        <input type="text" id="fDriverBeta" class="finput"
+               placeholder="Driver Beta">
+
+        <input type="text" id="fFromPlace" class="finput"
+               placeholder="From Place">
+
+        <input type="text" id="fToPlace" class="finput"
+               placeholder="To Place">
+
+        <input type="number" id="fFuel" class="finput"
+               placeholder="Fuel">
+
+        <input type="text" id="fPartyPerson" class="finput"
+               placeholder="Party Person">
+
+        <input type="text" id="fLoadingPerson" class="finput"
+               placeholder="Loading Person">
+
+        <input type="number" id="fWeight" class="finput"
+               placeholder="Weight">
+
+        <input type="number" id="fRate" class="finput"
+               placeholder="Amount Per Ton">
+
+      </div>
+
+      <div class="mfoot">
+        <button class="btn-primary"
+                onclick="saveAllLoad()">
+          Save
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+  <div class="modal fade" id="driversModal" tabindex="-1">
+
+  <div class="modal-dialog">
+
+    <div class="modal-content mpanel">
+
+      <div class="mhead">
+        <h5>Driver Attendance</h5>
+      </div>
+
+      <div class="mbody">
+
+        <input type="date"
+               id="fDriverDate"
+               class="finput">
+
+        <input type="text"
+               id="fDriverName2"
+               class="finput"
+               placeholder="Driver Name">
+
+        <select id="fDriverStatus"
+                class="fselect">
+
+          <option>Present</option>
+          <option>Absent</option>
+          <option>Available No Load</option>
+
+        </select>
+
+      </div>
+
+      <div class="mfoot">
+
+        <button class="btn-primary"
+                onclick="saveDriver()">
+          Save
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+  
 <div class="modal fade" id="deleteModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content mpanel">
