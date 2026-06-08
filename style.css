@@ -95,7 +95,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 .head-actions{display:flex;gap:10px;flex-wrap:wrap}
 
 /* ── Stat grid ── */
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px;margin-bottom:4px}
+.dash-cards{margin-bottom:4px}
 .stat-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:18px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);transition:transform var(--trans),box-shadow var(--trans)}
 .stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
 .stat-icon{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
@@ -105,6 +105,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 .s-green  .stat-icon{background:rgba(16,185,129,0.10);color:var(--green)}
 .s-purple .stat-icon{background:rgba(139,92,246,0.10);color:var(--purple)}
 .s-teal   .stat-icon{background:rgba(13,148,136,0.10);color:var(--teal)}
+.s-indigo .stat-icon{background:rgba(99,102,241,0.12);color:#6366f1}
 .stat-lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
 .stat-val{font-size:22px;font-weight:800;color:var(--text);font-family:'JetBrains Mono',monospace;margin-top:3px}
 
@@ -231,17 +232,17 @@ select.fselect{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
   .sidebar.open{transform:translateX(0);box-shadow:4px 0 30px rgba(0,0,0,0.4)}
   .main-wrap{margin-left:0}
   .hamburger{display:flex}
-  .stat-grid{grid-template-columns:repeat(3,1fr)}
+  .dash-cards .stat-card{min-height:90px}
   .page{padding:16px}
   .topbar{padding:0 14px}
 }
 @media(max-width:768px){
   .frow2{grid-template-columns:1fr}
-  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  /* bootstrap handles 2-col on sm */
   .datetime-chip{display:none}
 }
 @media(max-width:576px){
-  .stat-grid{grid-template-columns:1fr 1fr}
+  /* bootstrap handles responsive */
   .page-h{font-size:21px}
   .head-actions{width:100%}
   .head-actions button{flex:1;justify-content:center}
@@ -250,3 +251,24 @@ select.fselect{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── PDF filter option cards ── */
+.pdf-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.pdf-opt{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;padding:16px 10px;
+  border:2px solid var(--border);border-radius:var(--r);
+  background:var(--surf2);cursor:pointer;
+  transition:all var(--trans);text-align:center;
+}
+.pdf-opt:hover{border-color:var(--amber);background:rgba(245,158,11,0.06)}
+.pdf-opt.selected{border-color:var(--amber);background:rgba(245,158,11,0.10);}
+.pdf-opt i{font-size:22px;color:var(--amber)}
+.pdf-opt-lbl{font-size:13px;font-weight:700;color:var(--text)}
+.pdf-opt-sub{font-size:11px;color:var(--muted)}
+.custom-range{
+  margin-top:14px;padding:14px;
+  background:var(--surf2);border:1.5px solid var(--border);
+  border-radius:var(--r-sm);display:none;
+}
+.custom-range.show{display:block}
