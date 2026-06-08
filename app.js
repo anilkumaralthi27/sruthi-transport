@@ -1,3 +1,96 @@
+// ── Auth ──────────────────────────────────────────────
+const AUTH = { id: 'Sruthi', pass: '123456', key: 'st-auth' };
+
+function checkAuth() {
+  return sessionStorage.getItem(AUTH.key) === 'ok';
+}
+
+function doLogin() {
+  const id   = document.getElementById('loginId').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err  = document.getElementById('loginError');
+  const btn  = document.getElementById('loginBtn');
+  const card = document.querySelector('.login-card');
+
+  // Clear previous error
+  err.textContent = '';
+  err.classList.remove('show');
+
+  if (!id || !pass) {
+    showLoginError('Please enter both ID and password');
+    return;
+  }
+
+  // Show spinner
+  btn.disabled = true;
+  document.getElementById('loginBtnText').style.display = 'none';
+  document.getElementById('loginBtnSpinner').style.display = 'flex';
+
+  // Simulate a brief loading moment (feels more real)
+  setTimeout(() => {
+    if (id === AUTH.id && pass === AUTH.pass) {
+      sessionStorage.setItem(AUTH.key, 'ok');
+      // Fade out login screen
+      const screen = document.getElementById('loginScreen');
+      screen.classList.add('hidden');
+      // Show app
+      document.getElementById('appWrap').classList.remove('d-none');
+      // Init app after login
+      setTimeout(() => screen.style.display = 'none', 500);
+    } else {
+      btn.disabled = false;
+      document.getElementById('loginBtnText').style.display = 'flex';
+      document.getElementById('loginBtnSpinner').style.display = 'none';
+      // Shake card + show error
+      card.classList.add('shake');
+      card.addEventListener('animationend', () => card.classList.remove('shake'), { once: true });
+      const msg = id !== AUTH.id ? '⚠️ Invalid User ID' : '⚠️ Incorrect password';
+      showLoginError(msg);
+      document.getElementById('loginPass').value = '';
+      document.getElementById('loginPass').focus();
+    }
+  }, 800);
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function doLogout() {
+  sessionStorage.removeItem(AUTH.key);
+  // Hide app, show login
+  document.getElementById('appWrap').classList.add('d-none');
+  const screen = document.getElementById('loginScreen');
+  screen.style.display = 'flex';
+  screen.classList.remove('hidden');
+  // Clear fields
+  document.getElementById('loginId').value   = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginError').classList.remove('show');
+  // Close sidebar on mobile
+  closeSidebar();
+  // Reset button state
+  const btn = document.getElementById('loginBtn');
+  if(btn) { btn.disabled = false; }
+  document.getElementById('loginBtnText').style.display = 'flex';
+  document.getElementById('loginBtnSpinner').style.display = 'none';
+}
+
+function togglePw() {
+  const input = document.getElementById('loginPass');
+  const icon  = document.getElementById('eyeIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'bi bi-eye-slash-fill';
+  } else {
+    input.type = 'password';
+    icon.className = 'bi bi-eye-fill';
+  }
+}
+
 /* ════════════════════════════════════════════════════
    SRUTHI TRANSPORT — app.js  (v2)
    5 Modules: Credit · Spending · Loads · All Loads · Drivers
@@ -29,13 +122,26 @@ const pg = {
 
 // ── Init ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Check session auth first
+  if (checkAuth()) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appWrap').classList.remove('d-none');
+    initApp();
+  } else {
+    // Show login, focus first field
+    setTimeout(() => document.getElementById('loginId')?.focus(), 300);
+  }
+  // Clock runs always (shown in login screen area too if needed)
+  initClock();
+});
+
+function initApp() {
   initFirebase();
   initNav();
   initTheme();
   initSidebar();
   setDates();
-  initClock();
-});
+}
 
 // ── Live Clock ────────────────────────────────────────
 function initClock() {
