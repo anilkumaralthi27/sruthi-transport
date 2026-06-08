@@ -673,39 +673,65 @@ async function saveAllLoad() {
 
  const rec = {
 
-   date,
-   vehicle,
-   driverName,
-   driverBeta,
-   fromPlace,
-   toPlace,
-   fuel,
-   partyPerson,
-   loadingPerson,
+  date:
+  document.getElementById('fAllDate').value,
 
-   weight,
-   rate,
+  vehicle:
+  document.getElementById('fAllVehicle').value,
 
-   total : weight * rate,
+  driverName:
+  document.getElementById('fDriverName').value,
 
-   createdAt :
-   new Date().toISOString()
+  driverBeta:
+  document.getElementById('fDriverBeta').value,
+
+  fromPlace:
+  document.getElementById('fFromPlace').value,
+
+  toPlace:
+  document.getElementById('fToPlace').value,
+
+  fuel:
+  document.getElementById('fFuel').value,
+
+  partyPerson:
+  document.getElementById('fPartyPerson').value,
+
+  loadingPerson:
+  document.getElementById('fLoadingPerson').value,
+
+  weight:
+  document.getElementById('fWeight').value,
+
+  rate:
+  document.getElementById('fRate').value,
+
+  total:
+  document.getElementById('fWeight').value *
+  document.getElementById('fRate').value,
+
+  createdAt:
+  new Date().toISOString()
  };
 
- await upsert('allLoads', id, rec);
+ await upsert('allLoads','',rec);
 }
 async function saveDriver() {
 
  const rec = {
 
-   date,
-   driverName,
+  date:
+  document.getElementById('fDriverDate').value,
 
-   status,
+  driverName:
+  document.getElementById('fDriverName2').value,
 
-   createdAt :
-   new Date().toISOString()
+  status:
+  document.getElementById('fDriverStatus').value,
+
+  createdAt:
+  new Date().toISOString()
  };
 
- await upsert('drivers', id, rec);
+ await upsert('drivers','',rec);
 }
