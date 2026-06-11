@@ -192,15 +192,6 @@ body{font-family:'Outfit',system-ui,sans-serif}
           autocomplete="current-password"
           onkeydown="if(event.key==='Enter') doLogin()"
         />
-        <div style="margin-bottom:15px">
-  <label style="display:flex;align-items:center;gap:8px;color:white">
-    <input
-      type="checkbox"
-      id="rememberMe">
-
-    Remember Me
-  </label>
-</div>
         <button class="ls-eye" onclick="togglePw()" id="eyeBtn" title="Show/hide password">
           <i class="bi bi-eye-fill" id="eyeIcon"></i>
         </button>
@@ -518,7 +509,7 @@ body{font-family:'Outfit',system-ui,sans-serif}
     <div class="glass-card">
       <div class="table-wrap">
         <table class="ptable">
-          <thead><tr><th>#</th><th>Date</th><th>Vehicle No.</th><th>Wood Type</th>th><th>Weight (T)</th><th>Rate/Ton (₹)</th><th>Total (₹)</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>Date</th><th>Vehicle No.</th><th>Weight (T)</th><th>Rate/Ton (₹)</th><th>Total (₹)</th><th>Actions</th></tr></thead>
           <tbody id="loadsBody"></tbody>
         </table>
       </div>
@@ -718,33 +709,6 @@ body{font-family:'Outfit',system-ui,sans-serif}
             <input type="text" class="finput" id="fLoadsVeh" placeholder="e.g. TS09AB1234" style="text-transform:uppercase"/>
           </div>
         </div>
-        <div class="fgroup">
-  <label class="flabel">
-    Type of Wood
-  </label>
-
-  <select
-    id="fWoodType"
-    class="fselect">
-
-    <option value="Fire Wood">
-      Fire Wood
-    </option>
-
-    <option value="Mango">
-      Mango
-    </option>
-
-    <option value="Timber">
-      Timber
-    </option>
-
-    <option value="Other">
-      Other
-    </option>
-
-  </select>
-</div>
         <div class="frow2">
           <div class="fgroup">
             <label class="flabel">Weight (Tonnes) <span class="req">*</span></label>
