@@ -205,7 +205,10 @@ function applyRole() {
   });
 
   // 5. Navigate to first allowed page
-  const firstPage = allowed[0] || 'dashboard';
+ const firstPage =
+role === 'admin'
+? 'dashboard'
+: 'allloads';
   setTimeout(() => go(firstPage), 50);
 }
 
@@ -297,7 +300,9 @@ function go(page, skipHistory = false) {
   // Guard: redirect unauthorised pages to first allowed page
   const allowed = ROLE_PAGES[getRole()] || ROLE_PAGES.admin;
   if (!allowed.includes(page)) {
-    page = allowed[0] || 'dashboard';
+    page = role === 'admin'
+  ? 'dashboard'
+  : 'allloads';
   }
 
   document.querySelectorAll('.nav-item').forEach(a => a.classList.toggle('active', a.dataset.page === page));
