@@ -1,82 +1,110 @@
 // ── Auth ──────────────────────────────────────────────
-const AUTH = { id: 'Sruthi', pass: '123456', key: 'st-auth' };
+const USERS = {
+  'Sruthi': { pass: '123456', role: 'admin',     name: 'Sruthi',  initials: 'ST' },
+  'ramu':   { pass: '123456', role: 'accountant', name: 'Ramu',    initials: 'RM' }
+};
+
+// Pages each role can access (accountant = view-only, limited pages)
+const ROLE_PAGES = {
+  admin:      ['dashboard','credit','pending','loads','allloads','drivers'],
+  accountant: ['dashboard','allloads','drivers']
+};
+
+// Pages where accountant has NO add/edit/delete (view-only)
+const VIEW_ONLY_ROLES = ['accountant'];
+
+const AUTH_KEY  = 'st-auth-user';   // stores username
+let   currentUser = null;           // { id, role, name, initials }
 
 function checkAuth() {
-  return sessionStorage.getItem(AUTH.key) === 'ok';
+  const saved = sessionStorage.getItem(AUTH_KEY);
+  if (!saved) return false;
+  try {
+    currentUser = JSON.parse(saved);
+    return !!currentUser;
+  } catch { return false; }
 }
+
+function getRole() { return currentUser?.role || 'admin'; }
+function isAdmin()  { return getRole() === 'admin'; }
 
 function doLogin() {
   const id   = document.getElementById('loginId').value.trim();
   const pass = document.getElementById('loginPass').value;
-  const err  = document.getElementById('loginError');
   const btn  = document.getElementById('loginBtn');
-  const card = document.querySelector('.login-card');
+  const card = document.getElementById('loginCard');
 
-  // Clear previous error
-  err.textContent = '';
-  err.classList.remove('show');
+  showLoginError('');
 
   if (!id || !pass) {
-    showLoginError('Please enter both ID and password');
+    showLoginError('⚠️ Please enter both ID and password');
     return;
   }
 
-  // Show spinner
   btn.disabled = true;
   document.getElementById('loginBtnText').style.display = 'none';
   document.getElementById('loginBtnSpinner').style.display = 'flex';
 
-  // Simulate a brief loading moment (feels more real)
   setTimeout(() => {
-    if (id === AUTH.id && pass === AUTH.pass) {
-      sessionStorage.setItem(AUTH.key, 'ok');
-      // Fade out login screen
+    const userDef = USERS[id];
+
+    if (userDef && pass === userDef.pass) {
+      // Valid login — store user info in session
+      currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials };
+      sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
+
       const screen = document.getElementById('loginScreen');
-      screen.classList.add('hidden');
-      // Show app
+      screen.style.transition = 'opacity .5s ease';
+      screen.style.opacity = '0';
       document.getElementById('appWrap').classList.remove('d-none');
-      // Init app after login
-      setTimeout(() => screen.style.display = 'none', 500);
+      setTimeout(() => { screen.style.display = 'none'; }, 500);
+      initApp();
     } else {
       btn.disabled = false;
       document.getElementById('loginBtnText').style.display = 'flex';
       document.getElementById('loginBtnSpinner').style.display = 'none';
-      // Shake card + show error
-      card.classList.add('shake');
-      card.addEventListener('animationend', () => card.classList.remove('shake'), { once: true });
-      const msg = id !== AUTH.id ? '⚠️ Invalid User ID' : '⚠️ Incorrect password';
+      card.style.animation = 'none';
+      card.offsetHeight;
+      card.style.animation = 'shake .45s ease';
+      const msg = !USERS[id] ? '⚠️ Invalid User ID' : '⚠️ Incorrect password';
       showLoginError(msg);
       document.getElementById('loginPass').value = '';
       document.getElementById('loginPass').focus();
     }
-  }, 800);
+  }, 750);
 }
 
 function showLoginError(msg) {
   const el = document.getElementById('loginError');
+  if (!el) return;
   el.textContent = msg;
-  el.classList.add('show');
+  el.classList.toggle('show', !!msg);
 }
 
 function doLogout() {
-  sessionStorage.removeItem(AUTH.key);
-  // Hide app, show login
+  sessionStorage.removeItem(AUTH_KEY);
+  currentUser = null;
   document.getElementById('appWrap').classList.add('d-none');
   const screen = document.getElementById('loginScreen');
   screen.style.display = 'flex';
-  screen.classList.remove('hidden');
+  screen.style.opacity  = '1';
   // Clear fields
   document.getElementById('loginId').value   = '';
   document.getElementById('loginPass').value = '';
-  document.getElementById('loginError').textContent = '';
-  document.getElementById('loginError').classList.remove('show');
-  // Close sidebar on mobile
-  closeSidebar();
-  // Reset button state
+  showLoginError('');
+  // Reset button
   const btn = document.getElementById('loginBtn');
-  if(btn) { btn.disabled = false; }
-  document.getElementById('loginBtnText').style.display = 'flex';
+  if(btn) btn.disabled = false;
+  document.getElementById('loginBtnText').style.display  = 'flex';
   document.getElementById('loginBtnSpinner').style.display = 'none';
+  closeSidebar();
+  // Reset bottom nav
+  document.querySelectorAll('.mbn-item').forEach(b => {
+    b.classList.remove('active');
+    b.style.display = 'flex';
+  });
+  document.querySelector('.mbn-item[data-page="dashboard"]')?.classList.add('active');
+  setTimeout(() => document.getElementById('loginId')?.focus(), 100);
 }
 
 function togglePw() {
@@ -122,25 +150,63 @@ const pg = {
 
 // ── Init ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Check session auth first
+  initClock();
   if (checkAuth()) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appWrap').classList.remove('d-none');
     initApp();
   } else {
-    // Show login, focus first field
-    setTimeout(() => document.getElementById('loginId')?.focus(), 300);
+    setTimeout(() => document.getElementById('loginId')?.focus(), 400);
   }
-  // Clock runs always (shown in login screen area too if needed)
-  initClock();
 });
 
 function initApp() {
-  initFirebase();
+  applyRole();       // hide/show nav items based on role FIRST
+  initFirebase();    // loads data automatically
   initNav();
   initTheme();
   initSidebar();
   setDates();
+}
+
+// ── Role-based UI ─────────────────────────────────────
+function applyRole() {
+  const role      = getRole();
+  const allowed   = ROLE_PAGES[role] || ROLE_PAGES.admin;
+  const viewOnly  = VIEW_ONLY_ROLES.includes(role);
+
+  // 1. Show/hide sidebar nav items
+  document.querySelectorAll('.nav-item[data-page]').forEach(a => {
+    const page = a.dataset.page;
+    a.style.display = allowed.includes(page) ? 'flex' : 'none';
+  });
+
+  // 2. Show/hide Add/Edit/Delete buttons for view-only roles
+  if (viewOnly) {
+    // Hide all "Add" buttons in page headers
+    document.querySelectorAll('.btn-primary[onclick*="openModal"]').forEach(b => b.style.display = 'none');
+    // Hide action column buttons (edit/delete) — done dynamically in renderXxx via isAdmin()
+  }
+
+  // 3. Update user chip and role badge in topbar
+  const chip = document.getElementById('userChip');
+  if (chip) chip.textContent = currentUser?.initials || 'ST';
+
+  const roleBadge = document.getElementById('roleBadge');
+  if (roleBadge) {
+    roleBadge.textContent = role === 'admin' ? '👑 Admin' : '📋 Accountant';
+    roleBadge.className   = 'role-badge ' + (role === 'admin' ? 'rb-admin' : 'rb-accountant');
+  }
+
+  // 4. Show/hide mobile bottom nav items based on role
+  document.querySelectorAll('.mbn-item[data-page]').forEach(b => {
+    const pg = b.dataset.page;
+    b.style.display = allowed.includes(pg) ? 'flex' : 'none';
+  });
+
+  // 5. Navigate to first allowed page
+  const firstPage = allowed[0] || 'dashboard';
+  setTimeout(() => go(firstPage), 50);
 }
 
 // ── Live Clock ────────────────────────────────────────
@@ -200,6 +266,12 @@ function initNav() {
 }
 
 function go(page) {
+  // Guard: redirect unauthorised pages to first allowed page
+  const allowed = ROLE_PAGES[getRole()] || ROLE_PAGES.admin;
+  if (!allowed.includes(page)) {
+    page = allowed[0] || 'dashboard';
+  }
+
   document.querySelectorAll('.nav-item').forEach(a => a.classList.toggle('active', a.dataset.page === page));
   document.querySelectorAll('.page').forEach(s => s.classList.toggle('active', s.id === `page-${page}`));
   const titles = {
@@ -207,7 +279,20 @@ function go(page) {
     loads:'Loads to Saburi', allloads:'All Loads', drivers:'Driver Attendance'
   };
   document.getElementById('pageTitle').textContent = titles[page] || page;
+
+  // Sync mobile bottom nav
+  document.querySelectorAll('.mbn-item').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+
+  // Scroll to top on mobile page change
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
   if (page === 'dashboard') refreshDash();
+}
+
+// ── Mobile bottom nav handler ─────────────────────────
+function mbnGo(el, page) {
+  go(page);
+  closeSidebar();
 }
 
 // ── Sidebar ───────────────────────────────────────────
@@ -493,10 +578,7 @@ function renderCredit(rows, off) {
     <td>${fmtDate(r.date)}</td>
     <td class="c-green">₹ ${fmt(r.amount)}</td>
     <td>${r.account}</td>
-    <td>
-      <button class="abtn abtn-edit me-1" onclick='openModal("credit",${js(r)})'><i class="bi bi-pencil-fill"></i></button>
-      <button class="abtn abtn-del" onclick='askDelete("credit","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
-    </td>
+    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("credit",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("credit","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
   </tr>`).join('');
 }
 
@@ -509,10 +591,7 @@ function renderPending(rows, off) {
     <td class="c-red">₹ ${fmt(r.amount)}</td>
     <td>${fmtDate(r.date)}</td>
     <td style="max-width:180px;white-space:normal;font-size:12.5px;color:var(--muted)">${r.reason}</td>
-    <td>
-      <button class="abtn abtn-edit me-1" onclick='openModal("pending",${js(r)})'><i class="bi bi-pencil-fill"></i></button>
-      <button class="abtn abtn-del" onclick='askDelete("pending","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
-    </td>
+    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("pending",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("pending","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
   </tr>`).join('');
 }
 
@@ -526,10 +605,7 @@ function renderLoads(rows, off) {
     <td class="mono">${r.weight} T</td>
     <td class="mono">₹ ${fmt(r.rate)}</td>
     <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
-    <td>
-      <button class="abtn abtn-edit me-1" onclick='openModal("loads",${js(r)})'><i class="bi bi-pencil-fill"></i></button>
-      <button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
-    </td>
+    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("loads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
   </tr>`).join('');
 }
 
@@ -545,10 +621,7 @@ function renderAllLoads(rows, off) {
     <td style="color:var(--muted);font-size:12.5px">${r.toPlace}</td>
     <td class="mono">${r.weight} T</td>
     <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
-    <td>
-      <button class="abtn abtn-edit me-1" onclick='openModal("allLoads",${js(r)})'><i class="bi bi-pencil-fill"></i></button>
-      <button class="abtn abtn-del" onclick='askDelete("allLoads","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
-    </td>
+    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("allLoads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("allLoads","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
   </tr>`).join('');
 }
 
@@ -560,10 +633,7 @@ function renderDrivers(rows, off) {
     <td>${fmtDate(r.date)}</td>
     <td><strong>${r.driverName}</strong></td>
     <td>${statusBadge(r.status)}</td>
-    <td>
-      <button class="abtn abtn-edit me-1" onclick='openModal("drivers",${js(r)})'><i class="bi bi-pencil-fill"></i></button>
-      <button class="abtn abtn-del" onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
-    </td>
+    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("drivers",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
   </tr>`).join('');
 }
 
@@ -802,4 +872,11 @@ function toast(msg, type='ok') {
   el.style.borderLeft=`4px solid ${color}`;
   body.innerHTML=msg;
   bootstrap.Toast.getOrCreateInstance(el,{delay:3200}).show();
+}
+
+
+// ── Dashboard card navigation ──────────────────────────
+function dashGo(page) {
+  const allowed = ROLE_PAGES[getRole()] || ROLE_PAGES.admin;
+  if (allowed.includes(page)) go(page);
 }
