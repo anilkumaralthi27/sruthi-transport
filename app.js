@@ -1,7 +1,7 @@
 // ── Auth ──────────────────────────────────────────────
 const USERS = {
   'Sruthi': { pass: '2266', role: 'admin',     name: 'Sruthi',  initials: 'ST' },
-  'ramu':   { pass: '123456', role: 'accountant', name: 'Ramu',    initials: 'RM' }
+  'ramu':   { pass: '123456', role: 'accountant', name: 'Ramu',    initials: 'ST' }
 };
 
 // Both roles now have access to ALL pages
