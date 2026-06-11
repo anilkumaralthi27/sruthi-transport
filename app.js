@@ -1,6 +1,6 @@
 // ── Auth ──────────────────────────────────────────────
 const USERS = {
-  'Sruthi': { pass: '123456', role: 'admin',     name: 'Sruthi',  initials: 'ST' },
+  'Sruthi': { pass: '2266', role: 'admin',     name: 'Sruthi',  initials: 'ST' },
   'ramu':   { pass: '123456', role: 'accountant', name: 'Ramu',    initials: 'RM' }
 };
 
