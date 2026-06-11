@@ -666,12 +666,16 @@ function renderPending(rows, off) {
 
 function renderLoads(rows, off) {
   const b=document.getElementById('loadsBody'); if(!b) return;
-  if(!rows.length) { b.innerHTML=emptyRow(7); return; }
+  if(!rows.length) {
+   b.innerHTML = emptyRow(8);
+   return;
+}
   b.innerHTML=rows.map((r,i)=>`<tr>
     <td class="mono" style="color:var(--muted)">${off+i+1}</td>
     <td>${fmtDate(r.date)}</td>
     <td class="mono" style="letter-spacing:.06em">${r.vehicle}</td>
-    <td class="mono">${r.weight} T</td>
+    <td>${r.woodType || '-'}</td>
+<td class="mono">${r.weight} T</td>
     <td class="mono">₹ ${fmt(r.rate)}</td>
     <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
     <td><button class="abtn abtn-edit me-1" onclick='openModal("loads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
@@ -763,6 +767,24 @@ function goPage(name,p) {
 
 // ── Dashboard ─────────────────────────────────────────
 function refreshDash() {
+
+const morningLeaveDrivers = {};
+
+data.drivers.forEach(r => {
+
+ if(r.status === 'Morning Leave') {
+
+   morningLeaveDrivers[r.driverName] =
+      (morningLeaveDrivers[r.driverName] || 0) + 1;
+ }
+});
+
+const alerts = Object.entries(
+ morningLeaveDrivers
+).filter(([n,c]) => c >= 4);
+
+
+  
   set('d-credit',  '₹ '+fmt(data.credit.reduce((s,r)=>s+(+r.amount||0),0)));
   // Saburi loads amount (from loads collection where all are Saburi)
   const saburiAmt = data.loads.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
@@ -820,7 +842,24 @@ function selectPdfOpt(el) {
   if(el.dataset.val === 'custom') cd.classList.add('show');
   else cd.classList.remove('show');
 }
+const alertBox =
+document.getElementById(
+ 'attendanceAlerts'
+);
 
+if(alertBox){
+
+ alertBox.innerHTML =
+ alerts.map(
+ ([name,count]) => `
+ <div class="alert alert-warning">
+ ⚠️ ${name}
+ has ${count}
+ morning leaves
+ this month
+ </div>`
+ ).join('');
+}
 // toggleCustomDates replaced by selectPdfOpt card UI
 
 function downloadFilteredPDF() {
