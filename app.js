@@ -6,7 +6,7 @@ const USERS = {
 
 // Both roles now have access to ALL pages
 const ROLE_PAGES = {
-  admin: ['dashboard','credit','pending','loads','allloads','drivers'],
+  admin:      ['dashboard','credit','pending','loads','allloads','drivers'],
   accountant: ['loads','drivers']
 };
 
@@ -17,9 +17,7 @@ const AUTH_KEY  = 'st-auth-user';   // stores username
 let   currentUser = null;           // { id, role, name, initials }
 
 function checkAuth() {
-  const saved =
-    sessionStorage.getItem(AUTH_KEY) ||
-    localStorage.getItem(AUTH_KEY);
+  const saved = sessionStorage.getItem(AUTH_KEY);
   if (!saved) return false;
   try {
     currentUser = JSON.parse(saved);
@@ -53,21 +51,8 @@ function doLogin() {
     if (userDef && pass === userDef.pass) {
       // Valid login — store user info in session
       currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials };
-     // sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
-const remember =
-document.getElementById('rememberMe')?.checked;
+      sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
 
-if (remember) {
-  localStorage.setItem(
-    AUTH_KEY,
-    JSON.stringify(currentUser)
-  );
-} else {
-  sessionStorage.setItem(
-    AUTH_KEY,
-    JSON.stringify(currentUser)
-  );
-}
       const screen = document.getElementById('loginScreen');
       screen.style.transition = 'opacity .5s ease';
       screen.style.opacity = '0';
@@ -98,7 +83,6 @@ function showLoginError(msg) {
 
 function doLogout() {
   sessionStorage.removeItem(AUTH_KEY);
-localStorage.removeItem(AUTH_KEY);
   currentUser = null;
   document.getElementById('appWrap').classList.add('d-none');
   const screen = document.getElementById('loginScreen');
@@ -221,10 +205,7 @@ function applyRole() {
   });
 
   // 5. Navigate to first allowed page
-  const firstPage =
-role === 'admin'
-? 'dashboard'
-: 'loads';
+  const firstPage = allowed[0] || 'dashboard';
   setTimeout(() => go(firstPage), 50);
 }
 
@@ -497,18 +478,7 @@ async function saveLoad() {
   const weight  = parseFloat(document.getElementById('fLoadsWt').value);
   const rate    = parseFloat(document.getElementById('fLoadsRate').value);
   if (!date || !vehicle || isNaN(weight) || weight<=0 || isNaN(rate) || rate<=0) { toast('⚠️ Fill all required fields','warn'); return; }
-  const woodType =
-document.getElementById('fWoodType').value;
-
-await upsert('loads', id, {
-  date,
-  vehicle,
-  woodType,
-  weight,
-  rate,
-  total:weight*rate,
-  createdAt:new Date().toISOString()
-});
+  await upsert('loads', id, { date, vehicle, weight, rate, total:weight*rate, createdAt:new Date().toISOString() });
   bootstrap.Modal.getInstance(document.getElementById('loadsModal'))?.hide();
 }
 
@@ -540,15 +510,7 @@ async function saveDriver() {
   const driverName = document.getElementById('fDriverName2').value.trim();
   const status     = document.getElementById('fDriverStatus').value;
   if (!date || !driverName || !status) { toast('⚠️ Fill all required fields','warn'); return; }
-  await upsert('drivers', id, {
-  date,
-  driverName,
-  status,
-  salary:11000,
-  paidAmount:0,
-  pendingAmount:0,
-  createdAt:new Date().toISOString()
-});
+  await upsert('drivers', id, { date, driverName, status, createdAt:new Date().toISOString() });
   bootstrap.Modal.getInstance(document.getElementById('driversModal'))?.hide();
 }
 
@@ -666,16 +628,12 @@ function renderPending(rows, off) {
 
 function renderLoads(rows, off) {
   const b=document.getElementById('loadsBody'); if(!b) return;
-  if(!rows.length) {
-   b.innerHTML = emptyRow(8);
-   return;
-}
+  if(!rows.length) { b.innerHTML=emptyRow(7); return; }
   b.innerHTML=rows.map((r,i)=>`<tr>
     <td class="mono" style="color:var(--muted)">${off+i+1}</td>
     <td>${fmtDate(r.date)}</td>
     <td class="mono" style="letter-spacing:.06em">${r.vehicle}</td>
-    <td>${r.woodType || '-'}</td>
-<td class="mono">${r.weight} T</td>
+    <td class="mono">${r.weight} T</td>
     <td class="mono">₹ ${fmt(r.rate)}</td>
     <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
     <td><button class="abtn abtn-edit me-1" onclick='openModal("loads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
@@ -767,24 +725,6 @@ function goPage(name,p) {
 
 // ── Dashboard ─────────────────────────────────────────
 function refreshDash() {
-
-const morningLeaveDrivers = {};
-
-data.drivers.forEach(r => {
-
- if(r.status === 'Morning Leave') {
-
-   morningLeaveDrivers[r.driverName] =
-      (morningLeaveDrivers[r.driverName] || 0) + 1;
- }
-});
-
-const alerts = Object.entries(
- morningLeaveDrivers
-).filter(([n,c]) => c >= 4);
-
-
-  
   set('d-credit',  '₹ '+fmt(data.credit.reduce((s,r)=>s+(+r.amount||0),0)));
   // Saburi loads amount (from loads collection where all are Saburi)
   const saburiAmt = data.loads.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
@@ -842,24 +782,7 @@ function selectPdfOpt(el) {
   if(el.dataset.val === 'custom') cd.classList.add('show');
   else cd.classList.remove('show');
 }
-const alertBox =
-document.getElementById(
- 'attendanceAlerts'
-);
 
-if(alertBox){
-
- alertBox.innerHTML =
- alerts.map(
- ([name,count]) => `
- <div class="alert alert-warning">
- ⚠️ ${name}
- has ${count}
- morning leaves
- this month
- </div>`
- ).join('');
-}
 // toggleCustomDates replaced by selectPdfOpt card UI
 
 function downloadFilteredPDF() {
