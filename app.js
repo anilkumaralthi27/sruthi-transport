@@ -6,8 +6,8 @@ const USERS = {
 
 // Both roles now have access to ALL pages
 const ROLE_PAGES = {
-  admin:      ['dashboard','credit','pending','loads','allloads','drivers'],
-  accountant: ['dashboard','credit','pending','loads','allloads','drivers']
+  admin: ['dashboard','credit','pending','loads','allloads','drivers'],
+  accountant: ['loads','drivers']
 };
 
 // No view-only roles — both can add, edit, delete
@@ -17,7 +17,9 @@ const AUTH_KEY  = 'st-auth-user';   // stores username
 let   currentUser = null;           // { id, role, name, initials }
 
 function checkAuth() {
-  const saved = sessionStorage.getItem(AUTH_KEY);
+  const saved =
+    sessionStorage.getItem(AUTH_KEY) ||
+    localStorage.getItem(AUTH_KEY);
   if (!saved) return false;
   try {
     currentUser = JSON.parse(saved);
@@ -51,8 +53,21 @@ function doLogin() {
     if (userDef && pass === userDef.pass) {
       // Valid login — store user info in session
       currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials };
-      sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
+     // sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
+const remember =
+document.getElementById('rememberMe')?.checked;
 
+if (remember) {
+  localStorage.setItem(
+    AUTH_KEY,
+    JSON.stringify(currentUser)
+  );
+} else {
+  sessionStorage.setItem(
+    AUTH_KEY,
+    JSON.stringify(currentUser)
+  );
+}
       const screen = document.getElementById('loginScreen');
       screen.style.transition = 'opacity .5s ease';
       screen.style.opacity = '0';
@@ -83,6 +98,7 @@ function showLoginError(msg) {
 
 function doLogout() {
   sessionStorage.removeItem(AUTH_KEY);
+localStorage.removeItem(AUTH_KEY);
   currentUser = null;
   document.getElementById('appWrap').classList.add('d-none');
   const screen = document.getElementById('loginScreen');
@@ -205,7 +221,10 @@ function applyRole() {
   });
 
   // 5. Navigate to first allowed page
-  const firstPage = allowed[0] || 'dashboard';
+  const firstPage =
+role === 'admin'
+? 'dashboard'
+: 'loads';
   setTimeout(() => go(firstPage), 50);
 }
 
