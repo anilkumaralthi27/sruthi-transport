@@ -2,8 +2,12 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Sruthi Transport</title>
+  <meta name="theme-color" content="#0b1437"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Sruthi Transport"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
@@ -12,62 +16,200 @@
 <body>
 
 <!-- ════════ LOGIN SCREEN ════════ -->
-<div class="login-screen" id="loginScreen">
-  <div class="login-bg-shapes">
-    <div class="login-shape s1"></div>
-    <div class="login-shape s2"></div>
-    <div class="login-shape s3"></div>
-  </div>
-  <div class="login-card">
-    <div class="login-logo">
-      <div class="login-icon"><i class="bi bi-truck-flatbed"></i></div>
-      <div class="login-brand">
-        <span class="lb-name">Sruthi</span>
-        <span class="lb-sub">Transport</span>
+<style>
+/* ── Login screen self-contained styles ── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',system-ui,sans-serif}
+
+#loginScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(135deg,#060e24 0%,#0b1437 50%,#0e1f4a 100%);
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+  overflow:hidden;
+}
+#loginScreen.ls-hidden{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .5s ease,visibility .5s ease}
+
+/* Glowing orbs */
+.ls-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(80px)}
+.ls-orb1{width:500px;height:500px;top:-160px;left:-160px;background:radial-gradient(circle,rgba(245,158,11,.18) 0%,transparent 70%);animation:orbFloat1 9s ease-in-out infinite}
+.ls-orb2{width:400px;height:400px;bottom:-120px;right:-120px;background:radial-gradient(circle,rgba(59,130,246,.14) 0%,transparent 70%);animation:orbFloat2 11s ease-in-out infinite}
+.ls-orb3{width:300px;height:300px;top:45%;left:55%;background:radial-gradient(circle,rgba(139,92,246,.10) 0%,transparent 70%);animation:orbFloat3 7s ease-in-out infinite}
+@keyframes orbFloat1{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,-30px)}}
+@keyframes orbFloat2{0%,100%{transform:translate(0,0)}50%{transform:translate(-25px,25px)}}
+@keyframes orbFloat3{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-45%,-55%)}}
+
+/* Grid pattern overlay */
+#loginScreen::before{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:50px 50px;pointer-events:none;
+}
+
+/* Card */
+.ls-card{
+  position:relative;z-index:10;
+  width:100%;max-width:440px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:24px;
+  padding:44px 40px 36px;
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 30px 70px rgba(0,0,0,.55),0 0 0 1px rgba(245,158,11,.08),inset 0 1px 0 rgba(255,255,255,.07);
+  animation:cardIn .55s cubic-bezier(.34,1.4,.64,1) both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}15%,45%,75%{transform:translateX(-9px)}30%,60%,90%{transform:translateX(9px)}}
+.ls-card.shake{animation:shake .45s ease}
+
+/* Logo */
+.ls-logo{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:6px}
+.ls-icon{
+  width:56px;height:56px;border-radius:16px;flex-shrink:0;
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;color:#fff;
+  box-shadow:0 0 0 4px rgba(245,158,11,.18),0 8px 24px rgba(245,158,11,.35);
+}
+.ls-brand-name{display:block;font-size:26px;font-weight:800;color:#fff;line-height:1.1;letter-spacing:-.01em}
+.ls-brand-sub{display:block;font-size:11px;font-weight:700;color:#f59e0b;letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
+
+/* Divider */
+.ls-div{height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,.12),transparent);margin:22px 0}
+
+/* Headings */
+.ls-title{font-size:22px;font-weight:800;color:#fff;text-align:center;margin-bottom:6px;letter-spacing:-.02em}
+.ls-desc{font-size:13.5px;color:rgba(255,255,255,.45);text-align:center;margin-bottom:28px;font-weight:400}
+
+/* Field group */
+.ls-group{margin-bottom:18px}
+.ls-label{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45);margin-bottom:8px}
+
+/* Input */
+.ls-input{
+  width:100%;padding:13px 16px;
+  background:rgba(255,255,255,.06);
+  border:1.5px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  color:#fff;font-family:inherit;font-size:15px;font-weight:500;
+  outline:none;transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.ls-input:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.18);background:rgba(255,255,255,.09)}
+.ls-input::placeholder{color:rgba(255,255,255,.22)}
+
+/* Password wrapper */
+.ls-pw{position:relative}
+.ls-pw .ls-input{padding-right:50px}
+.ls-eye{
+  position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;color:rgba(255,255,255,.30);
+  font-size:17px;transition:color .2s;padding:4px;line-height:1;
+}
+.ls-eye:hover{color:#f59e0b}
+
+/* Error */
+.ls-err{
+  min-height:22px;text-align:center;font-size:13px;font-weight:600;
+  color:#fca5a5;margin-bottom:14px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  opacity:0;transition:opacity .2s ease;
+}
+.ls-err.show{opacity:1}
+
+/* Sign in button */
+.ls-btn{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,#f59e0b,#d97706);
+  border:none;border-radius:12px;
+  color:#fff;font-family:inherit;font-size:15px;font-weight:700;
+  cursor:pointer;letter-spacing:.01em;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  box-shadow:0 4px 20px rgba(245,158,11,.40);
+  transition:transform .2s,box-shadow .2s,opacity .2s;
+  position:relative;overflow:hidden;
+}
+.ls-btn::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background .2s}
+.ls-btn:hover:not(:disabled)::before{background:rgba(255,255,255,.08)}
+.ls-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 30px rgba(245,158,11,.55)}
+.ls-btn:active:not(:disabled){transform:translateY(0)}
+.ls-btn:disabled{opacity:.65;cursor:not-allowed;transform:none}
+
+/* Spinner inside button */
+.ls-spin{width:17px;height:17px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Footer */
+.ls-foot{margin-top:24px;text-align:center;font-size:11.5px;color:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;gap:6px}
+
+/* Responsive */
+@media(max-width:480px){
+  .ls-card{padding:32px 22px 28px;border-radius:20px}
+  .ls-title{font-size:20px}
+  .ls-brand-name{font-size:22px}
+}
+</style>
+
+<div id="loginScreen">
+  <div class="ls-orb ls-orb1"></div>
+  <div class="ls-orb ls-orb2"></div>
+  <div class="ls-orb ls-orb3"></div>
+
+  <div class="ls-card" id="loginCard">
+
+    <div class="ls-logo">
+      <div class="ls-icon"><i class="bi bi-truck-flatbed"></i></div>
+      <div>
+        <span class="ls-brand-name">Sruthi</span>
+        <span class="ls-brand-sub">Transport</span>
       </div>
     </div>
-    <div class="login-divider"></div>
-    <h2 class="login-title">Welcome Back</h2>
-    <p class="login-desc">Sign in to access the management system</p>
 
-    <div class="login-form">
-      <div class="lf-group">
-        <label class="lf-label"><i class="bi bi-person-fill"></i> User ID</label>
+    <div class="ls-div"></div>
+
+    <h2 class="ls-title">Welcome Back</h2>
+    <p class="ls-desc">Sign in to access the management system</p>
+
+    <div class="ls-group">
+      <label class="ls-label"><i class="bi bi-person-fill"></i> User ID</label>
+      <input
+        type="text"
+        class="ls-input"
+        id="loginId"
+        placeholder="Enter your ID"
+        autocomplete="username"
+        onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()"
+      />
+    </div>
+
+    <div class="ls-group">
+      <label class="ls-label"><i class="bi bi-lock-fill"></i> Password</label>
+      <div class="ls-pw">
         <input
-          type="text"
-          class="lf-input"
-          id="loginId"
-          placeholder="Enter your ID"
-          autocomplete="username"
-          onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()"
+          type="password"
+          class="ls-input"
+          id="loginPass"
+          placeholder="Enter your password"
+          autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') doLogin()"
         />
+        <button class="ls-eye" onclick="togglePw()" id="eyeBtn" title="Show/hide password">
+          <i class="bi bi-eye-fill" id="eyeIcon"></i>
+        </button>
       </div>
-      <div class="lf-group">
-        <label class="lf-label"><i class="bi bi-lock-fill"></i> Password</label>
-        <div class="lf-pw-wrap">
-          <input
-            type="password"
-            class="lf-input"
-            id="loginPass"
-            placeholder="Enter your password"
-            autocomplete="current-password"
-            onkeydown="if(event.key==='Enter') doLogin()"
-          />
-          <button class="lf-eye" onclick="togglePw()" id="eyeBtn" title="Show/hide password">
-            <i class="bi bi-eye-fill" id="eyeIcon"></i>
-          </button>
-        </div>
-      </div>
-      <div class="login-error" id="loginError"></div>
-      <button class="login-btn" onclick="doLogin()" id="loginBtn">
-        <span id="loginBtnText"><i class="bi bi-box-arrow-in-right"></i> Sign In</span>
-        <span id="loginBtnSpinner" style="display:none">
-          <span class="login-spin"></span> Signing in…
-        </span>
-      </button>
     </div>
 
-    <div class="login-footer">
+    <div class="ls-err" id="loginError"></div>
+
+    <button class="ls-btn" onclick="doLogin()" id="loginBtn">
+      <span id="loginBtnText" style="display:flex;align-items:center;gap:9px">
+        <i class="bi bi-box-arrow-in-right"></i> Sign In
+      </span>
+      <span id="loginBtnSpinner" style="display:none;align-items:center;gap:9px">
+        <span class="ls-spin"></span> Signing in…
+      </span>
+    </button>
+
+    <div class="ls-foot">
       <i class="bi bi-shield-lock-fill"></i> Secured · Sruthi Transport Management
     </div>
   </div>
@@ -138,7 +280,8 @@
         <div class="dt-date" id="topDate"></div>
         <div class="dt-time" id="topTime"></div>
       </div>
-      <div class="user-chip">ST</div>
+      <span class="role-badge rb-admin" id="roleBadge">👑 Admin</span>
+      <div class="user-chip" id="userChip">ST</div>
     </div>
   </header>
 
@@ -152,45 +295,52 @@
     </div>
     <div class="row g-3 dash-cards">
       <div class="col-6 col-md-4 col-lg-3">
-        <div class="stat-card s-amber h-100">
+        <div class="stat-card s-amber h-100 clickable" onclick="dashGo('credit')" title="Go to Credit Amount">
           <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
           <div><div class="stat-lbl">Total Credit</div><div class="stat-val" id="d-credit">₹0.00</div></div>
+          <div class="card-arrow"><i class="bi bi-arrow-right-short"></i></div>
         </div>
       </div>
       <div class="col-6 col-md-4 col-lg-3">
-        <div class="stat-card s-red h-100">
+        <div class="stat-card s-red h-100 clickable" onclick="dashGo('pending')" title="Go to Spending Amount">
           <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
           <div><div class="stat-lbl">Total Spending</div><div class="stat-val" id="d-pending">₹0.00</div></div>
+          <div class="card-arrow"><i class="bi bi-arrow-right-short"></i></div>
         </div>
       </div>
       <div class="col-6 col-md-4 col-lg-3">
-        <div class="stat-card s-blue h-100">
+        <div class="stat-card s-blue h-100 clickable" onclick="dashGo('loads')" title="Go to Loads to Saburi">
           <div class="stat-icon"><i class="bi bi-boxes"></i></div>
           <div><div class="stat-lbl">Saburi Loads</div><div class="stat-val" id="d-loads">0</div></div>
+          <div class="card-arrow"><i class="bi bi-arrow-right-short"></i></div>
         </div>
       </div>
       <div class="col-6 col-md-4 col-lg-3">
-        <div class="stat-card s-indigo h-100">
+        <div class="stat-card s-indigo h-100 clickable" onclick="dashGo('loads')" title="Go to Loads to Saburi">
           <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
           <div><div class="stat-lbl">Saburi Amount</div><div class="stat-val" id="d-saburi-amt">₹0.00</div></div>
+          <div class="card-arrow"><i class="bi bi-arrow-right-short"></i></div>
         </div>
       </div>
       <div class="col-6 col-md-4 col-lg-3">
-        <div class="stat-card s-green h-100">
+        <div class="stat-card s-green h-100 clickable" onclick="dashGo('loads')" title="Go to Loads to Saburi">
           <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
           <div><div class="stat-lbl">Total Weight</div><div class="stat-val" id="d-weight">0 T</div></div>
+          <div class="card-arrow"><i class="bi bi-arrow-right-short"></i></div>
         </div>
       </div>
       <div class="col-6 col-md-4 col-lg-3">
-        <div class="stat-card s-purple h-100">
+        <div class="stat-card s-purple h-100 clickable" onclick="dashGo('allloads')" title="Go to All Loads">
           <div class="stat-icon"><i class="bi bi-truck"></i></div>
           <div><div class="stat-lbl">All Loads</div><div class="stat-val" id="d-allloads">0</div></div>
+          <div class="card-arrow"><i class="bi bi-arrow-right-short"></i></div>
         </div>
       </div>
       <div class="col-6 col-md-4 col-lg-3">
-        <div class="stat-card s-teal h-100">
+        <div class="stat-card s-teal h-100 clickable" onclick="dashGo('drivers')" title="Go to Driver Attendance">
           <div class="stat-icon"><i class="bi bi-person-badge"></i></div>
           <div><div class="stat-lbl">Present Today</div><div class="stat-val" id="d-drivers">0</div></div>
+          <div class="card-arrow"><i class="bi bi-arrow-right-short"></i></div>
         </div>
       </div>
     </div>
@@ -735,8 +885,32 @@
   </div>
 </div>
 
+<!-- SPINNER -->
+<div class="spinner-overlay d-none" id="spinner">
+  <div class="spin-ring"></div>
+</div>
 
-
+<!-- ════════ MOBILE BOTTOM NAV ════════ -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <div class="mbn-inner">
+    <button class="mbn-item active" data-page="dashboard" onclick="mbnGo(this,'dashboard')">
+      <i class="bi bi-grid-1x2-fill"></i>Home
+    </button>
+    <button class="mbn-item" data-page="credit" onclick="mbnGo(this,'credit')" id="mbn-credit">
+      <i class="bi bi-cash-stack"></i>Credit
+    </button>
+    <button class="mbn-item" data-page="pending" onclick="mbnGo(this,'pending')" id="mbn-pending">
+      <i class="bi bi-wallet2"></i>Spend
+    </button>
+    <button class="mbn-item" data-page="allloads" onclick="mbnGo(this,'allloads')" id="mbn-allloads">
+      <i class="bi bi-truck"></i>Loads
+    </button>
+    <button class="mbn-item" data-page="drivers" onclick="mbnGo(this,'drivers')" id="mbn-drivers">
+      <i class="bi bi-person-badge"></i>Staff
+    </button>
+  </div>
+</nav>
+<div class="mobile-nav-spacer"></div>
 
 </div><!-- /app-wrap -->
 
