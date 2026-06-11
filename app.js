@@ -4,14 +4,14 @@ const USERS = {
   'ramu':   { pass: '123456', role: 'accountant', name: 'Ramu',    initials: 'RM' }
 };
 
-// Pages each role can access (accountant = view-only, limited pages)
+// Both roles now have access to ALL pages
 const ROLE_PAGES = {
   admin:      ['dashboard','credit','pending','loads','allloads','drivers'],
-  accountant: ['dashboard','allloads','drivers']
+  accountant: ['dashboard','credit','pending','loads','allloads','drivers']
 };
 
-// Pages where accountant has NO add/edit/delete (view-only)
-const VIEW_ONLY_ROLES = ['accountant'];
+// No view-only roles — both can add, edit, delete
+const VIEW_ONLY_ROLES = [];
 
 const AUTH_KEY  = 'st-auth-user';   // stores username
 let   currentUser = null;           // { id, role, name, initials }
@@ -98,6 +98,11 @@ function doLogout() {
   document.getElementById('loginBtnText').style.display  = 'flex';
   document.getElementById('loginBtnSpinner').style.display = 'none';
   closeSidebar();
+  // Reset nav history
+  navHistory.length = 0;
+  navIndex = -1;
+  updateNavArrows();
+
   // Reset bottom nav
   document.querySelectorAll('.mbn-item').forEach(b => {
     b.classList.remove('active');
@@ -181,12 +186,7 @@ function applyRole() {
     a.style.display = allowed.includes(page) ? 'flex' : 'none';
   });
 
-  // 2. Show/hide Add/Edit/Delete buttons for view-only roles
-  if (viewOnly) {
-    // Hide all "Add" buttons in page headers
-    document.querySelectorAll('.btn-primary[onclick*="openModal"]').forEach(b => b.style.display = 'none');
-    // Hide action column buttons (edit/delete) — done dynamically in renderXxx via isAdmin()
-  }
+  // Both roles have full access — no view-only hiding needed
 
   // 3. Update user chip and role badge in topbar
   const chip = document.getElementById('userChip');
@@ -254,6 +254,34 @@ function setDbStatus(mode) {
   lb.textContent = mode === 'firebase' ? 'Firebase Connected' : 'Local Storage';
 }
 
+// ── Navigation history (back/forward) ────────────────────────
+const navHistory = [];
+let   navIndex   = -1;
+
+function navPush(page) {
+  if (navIndex < navHistory.length - 1) navHistory.splice(navIndex + 1);
+  if (navHistory[navIndex] !== page) {
+    navHistory.push(page);
+    navIndex = navHistory.length - 1;
+  }
+  updateNavArrows();
+}
+
+function navBack() {
+  if (navIndex > 0) { navIndex--; go(navHistory[navIndex], true); updateNavArrows(); }
+}
+
+function navForward() {
+  if (navIndex < navHistory.length - 1) { navIndex++; go(navHistory[navIndex], true); updateNavArrows(); }
+}
+
+function updateNavArrows() {
+  const back    = document.getElementById('btnBack');
+  const forward = document.getElementById('btnForward');
+  if (back)    back.disabled    = navIndex <= 0;
+  if (forward) forward.disabled = navIndex >= navHistory.length - 1;
+}
+
 // ── Navigation ────────────────────────────────────────
 function initNav() {
   document.querySelectorAll('.nav-item').forEach(a => {
@@ -265,7 +293,7 @@ function initNav() {
   });
 }
 
-function go(page) {
+function go(page, skipHistory = false) {
   // Guard: redirect unauthorised pages to first allowed page
   const allowed = ROLE_PAGES[getRole()] || ROLE_PAGES.admin;
   if (!allowed.includes(page)) {
@@ -282,6 +310,9 @@ function go(page) {
 
   // Sync mobile bottom nav
   document.querySelectorAll('.mbn-item').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+
+  // Push to navigation history
+  if (!skipHistory) navPush(page);
 
   // Scroll to top on mobile page change
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -578,7 +609,7 @@ function renderCredit(rows, off) {
     <td>${fmtDate(r.date)}</td>
     <td class="c-green">₹ ${fmt(r.amount)}</td>
     <td>${r.account}</td>
-    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("credit",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("credit","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
+    <td><button class="abtn abtn-edit me-1" onclick='openModal("credit",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("credit","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -591,7 +622,7 @@ function renderPending(rows, off) {
     <td class="c-red">₹ ${fmt(r.amount)}</td>
     <td>${fmtDate(r.date)}</td>
     <td style="max-width:180px;white-space:normal;font-size:12.5px;color:var(--muted)">${r.reason}</td>
-    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("pending",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("pending","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
+    <td><button class="abtn abtn-edit me-1" onclick='openModal("pending",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("pending","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -605,7 +636,7 @@ function renderLoads(rows, off) {
     <td class="mono">${r.weight} T</td>
     <td class="mono">₹ ${fmt(r.rate)}</td>
     <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
-    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("loads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
+    <td><button class="abtn abtn-edit me-1" onclick='openModal("loads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -621,7 +652,7 @@ function renderAllLoads(rows, off) {
     <td style="color:var(--muted);font-size:12.5px">${r.toPlace}</td>
     <td class="mono">${r.weight} T</td>
     <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
-    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("allLoads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("allLoads","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
+    <td><button class="abtn abtn-edit me-1" onclick='openModal("allLoads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("allLoads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -633,7 +664,7 @@ function renderDrivers(rows, off) {
     <td>${fmtDate(r.date)}</td>
     <td><strong>${r.driverName}</strong></td>
     <td>${statusBadge(r.status)}</td>
-    <td>${isAdmin() ? `<button class="abtn abtn-edit me-1" onclick='openModal("drivers",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button>` : '<span style="font-size:11px;color:var(--muted)">View only</span>'}</td>
+    <td><button class="abtn abtn-edit me-1" onclick='openModal("drivers",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -880,3 +911,202 @@ function dashGo(page) {
   const allowed = ROLE_PAGES[getRole()] || ROLE_PAGES.admin;
   if (allowed.includes(page)) go(page);
 }
+
+
+// ══════════════════════════════════════════════════════
+//  SABURI LOADS BAR CHART — month-wise
+// ══════════════════════════════════════════════════════
+let saburiChartInst = null;
+let chartMetric = 'amount';   // 'amount' | 'weight' | 'trips'
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Called from refreshDash and year/metric selectors
+function buildChart() {
+  const canvas = document.getElementById('saburiChart');
+  const wrap   = document.getElementById('chartWrap');
+  const emptyMsg = document.getElementById('chartEmptyMsg');
+  if (!canvas) return;
+
+  const loads = data.loads || [];
+
+  // ── Populate year dropdown ──
+  const yearSel = document.getElementById('chartYearSelect');
+  if (yearSel) {
+    const years = [...new Set(loads.map(r => r.date?.slice(0,4)).filter(Boolean))].sort().reverse();
+    if (years.length === 0) years.push(String(new Date().getFullYear()));
+    // Only rebuild options if they differ
+    const existing = [...yearSel.options].map(o => o.value);
+    if (JSON.stringify(existing) !== JSON.stringify(years)) {
+      yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    }
+  }
+
+  const selectedYear = yearSel ? yearSel.value : String(new Date().getFullYear());
+
+  // ── Filter by selected year ──
+  const yearLoads = loads.filter(r => r.date?.startsWith(selectedYear));
+
+  // ── Aggregate by month ──
+  const byMonth = Array(12).fill(null).map(() => ({ amount:0, weight:0, trips:0 }));
+  yearLoads.forEach(r => {
+    const m = parseInt((r.date || '').slice(5,7), 10) - 1;
+    if (m < 0 || m > 11) return;
+    byMonth[m].amount += parseFloat(r.total || (r.weight * r.rate) || 0);
+    byMonth[m].weight += parseFloat(r.weight || 0);
+    byMonth[m].trips  += 1;
+  });
+
+  // ── Check empty ──
+  const hasData = byMonth.some(m => m[chartMetric] > 0);
+  if (!hasData) {
+    if (wrap)     wrap.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    if (saburiChartInst) { saburiChartInst.destroy(); saburiChartInst = null; }
+    return;
+  }
+  if (wrap)     wrap.style.display = 'block';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  // ── Build datasets ──
+  const metricLabels = { amount:'Amount (₹)', weight:'Weight (T)', trips:'Trips' };
+  const rawValues    = byMonth.map(m => parseFloat(m[chartMetric].toFixed(2)));
+
+  // Color: amber gradient using opacity per bar (lighter on zero, fuller on peak)
+  const maxVal  = Math.max(...rawValues, 1);
+  const bgColors = rawValues.map(v => {
+    const alpha = v === 0 ? 0.06 : 0.18 + (v / maxVal) * 0.72;
+    return `rgba(245,158,11,${alpha.toFixed(2)})`;
+  });
+  const borderColors = rawValues.map(v =>
+    v === 0 ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.85)'
+  );
+
+  // Theme detection for text/grid colours
+  const isDark  = document.documentElement.dataset.theme === 'dark';
+  const txtCol  = isDark ? 'rgba(180,195,230,0.75)' : 'rgba(60,80,120,0.70)';
+  const gridCol = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const zeroCol = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+
+  // ── Format axis tick ──
+  function fmtTick(v) {
+    if (chartMetric === 'amount') {
+      if (v >= 1_00_000) return '₹' + (v/1_00_000).toFixed(1) + 'L';
+      if (v >= 1000)     return '₹' + (v/1000).toFixed(0) + 'K';
+      return '₹' + v;
+    }
+    if (chartMetric === 'weight') return v + ' T';
+    return v;
+  }
+
+  // ── Format tooltip ──
+  function fmtTooltip(v) {
+    if (chartMetric === 'amount')  return '₹ ' + parseFloat(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    if (chartMetric === 'weight')  return v + ' Tonnes';
+    return v + ' trips';
+  }
+
+  const chartConfig = {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [{
+        label: metricLabels[chartMetric],
+        data: rawValues,
+        backgroundColor: bgColors,
+        borderColor: borderColors,
+        borderWidth: 1.5,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 500, easing: 'easeInOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#0f1e3a' : '#ffffff',
+          titleColor: isDark ? '#e2e8f0' : '#0f172a',
+          bodyColor: isDark ? '#94a3b8' : '#475569',
+          borderColor: isDark ? '#1c2d50' : '#dde1ef',
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 10,
+          callbacks: {
+            title: ctx => MONTHS[ctx[0].dataIndex] + ' ' + selectedYear,
+            label: ctx => '  ' + metricLabels[chartMetric] + ': ' + fmtTooltip(ctx.raw)
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            color: txtCol,
+            font: { family: "'Outfit',sans-serif", size: 12, weight: '500' },
+            autoSkip: false,
+            maxRotation: 0,
+          }
+        },
+        y: {
+          grid: { color: gridCol, lineWidth: 1 },
+          border: { display: false, dash: [4,4] },
+          beginAtZero: true,
+          ticks: {
+            color: txtCol,
+            font: { family: "'Outfit',sans-serif", size: 11 },
+            maxTicksLimit: 6,
+            callback: v => fmtTick(v)
+          }
+        }
+      },
+      interaction: { intersect: false, mode: 'index' }
+    }
+  };
+
+  // ── Create or update chart ──
+  if (saburiChartInst) {
+    saburiChartInst.data = chartConfig.data;
+    saburiChartInst.options = chartConfig.options;
+    saburiChartInst.update('none');
+  } else {
+    saburiChartInst = new Chart(canvas, chartConfig);
+  }
+
+  // ── Build summary legend below chart ──
+  buildChartLegend(byMonth, selectedYear);
+}
+
+function buildChartLegend(byMonth, year) {
+  const el = document.getElementById('chartLegend');
+  if (!el) return;
+  const totalAmt    = byMonth.reduce((s,m) => s+m.amount, 0);
+  const totalWeight = byMonth.reduce((s,m) => s+m.weight, 0);
+  const totalTrips  = byMonth.reduce((s,m) => s+m.trips, 0);
+  const peakIdx     = byMonth.reduce((bi,m,i,arr) => m[chartMetric] > arr[bi][chartMetric] ? i : bi, 0);
+
+  el.innerHTML = `
+    <span class="cleg-pill cleg-amber">₹ ${(totalAmt/100000).toFixed(2)}L total</span>
+    <span class="cleg-pill cleg-blue">${totalWeight.toFixed(1)} T</span>
+    <span class="cleg-pill cleg-green">${totalTrips} trips</span>
+    ${totalTrips > 0 ? `<span class="cleg-pill cleg-purple">Peak: ${MONTHS[peakIdx]}</span>` : ''}
+  `;
+}
+
+function switchMetric(btn, metric) {
+  chartMetric = metric;
+  document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildChart();
+}
+
+// Re-build chart when theme changes
+const _origApplyTheme = applyTheme;
+applyTheme = function(t) {
+  _origApplyTheme(t);
+  if (saburiChartInst) {
+    setTimeout(buildChart, 50);
+  }
+};
