@@ -462,3 +462,140 @@ select.fselect{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
   background: rgba(15,30,58,0.85);
   border-color: rgba(255,255,255,0.08);
 }
+
+/* ── Role badge (topbar) ── */
+.role-badge {
+  display: inline-flex; align-items: center;
+  padding: 5px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 700; letter-spacing: .03em;
+  white-space: nowrap;
+}
+.rb-admin       { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+.rb-accountant  { background: rgba(59,130,246,0.12); color: var(--blue);  border: 1px solid rgba(59,130,246,0.25); }
+
+
+/* ── Clickable dashboard cards ── */
+.stat-card.clickable {
+  cursor: pointer;
+  position: relative;
+  transition: transform var(--trans), box-shadow var(--trans), border-color var(--trans);
+}
+.stat-card.clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--amber);
+}
+.stat-card.clickable:active { transform: translateY(-1px); }
+
+.card-arrow {
+  position: absolute; top: 10px; right: 10px;
+  font-size: 20px; color: var(--border);
+  transition: color var(--trans), transform var(--trans);
+  line-height: 1;
+}
+.stat-card.clickable:hover .card-arrow {
+  color: var(--amber);
+  transform: translateX(3px);
+}
+
+/* ── 400px (very small) ── */
+@media(max-width:400px){
+  .page{padding:10px 8px}
+  .page-h{font-size:17px}
+  .stat-val{font-size:14px}
+  .stat-icon{width:32px;height:32px;font-size:14px}
+  .stat-card{padding:10px 8px;gap:8px}
+  .glass-card{padding:10px}
+  .ptable{min-width:440px;font-size:12px}
+  .ptable thead th{padding:8px;font-size:8.5px}
+  .ptable tbody td{padding:8px}
+  .btn-primary,.btn-outline{padding:7px 12px;font-size:12px}
+  .finput,.fselect{padding:8px 10px;font-size:13px}
+  .tp-val{font-size:14px}
+  .pgbtn{width:28px;height:28px;font-size:11px}
+  .topbar-title{font-size:13px}
+}
+
+/* ── Mobile bottom navigation bar ── */
+.mobile-bottom-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--sb-bg);
+  border-top:1px solid rgba(255,255,255,0.08);
+  z-index:950;
+  padding:4px 0 env(safe-area-inset-bottom,4px);
+  box-shadow:0 -4px 20px rgba(0,0,0,0.35);
+}
+.mbn-inner{
+  display:flex;align-items:stretch;justify-content:space-around;
+  max-width:600px;margin:0 auto;
+}
+.mbn-item{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;padding:8px 6px;flex:1;
+  color:rgba(255,255,255,0.45);text-decoration:none;
+  font-size:9.5px;font-weight:600;letter-spacing:.04em;
+  border:none;background:none;cursor:pointer;
+  font-family:'Outfit',sans-serif;
+  transition:color .2s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.mbn-item i{font-size:19px;display:block}
+.mbn-item.active,.mbn-item:active{color:var(--amber)}
+.mbn-item.active i{
+  background:rgba(245,158,11,0.12);
+  border-radius:8px;padding:4px 10px;
+}
+
+/* Spacer to prevent content hiding behind bottom nav */
+.mobile-nav-spacer{display:none;height:64px}
+
+@media(max-width:768px){
+  .mobile-bottom-nav{display:block}
+  .mobile-nav-spacer{display:block}
+  /* hide sidebar nav items that are duplicated in bottom nav */
+}
+
+/* Touch-friendly tap targets */
+@media(hover:none) and (pointer:coarse){
+  .btn-primary,.btn-outline,.btn-danger{min-height:44px}
+  .finput,.fselect{min-height:44px}
+  .abtn{width:36px;height:36px}
+  .pgbtn{width:36px;height:36px}
+  .nav-item{min-height:44px}
+  .ls-input{min-height:48px}
+  .ls-btn{min-height:50px}
+  .mbn-item{min-height:56px}
+}
+
+/* Modal full-screen on small phones */
+@media(max-width:576px){
+  .modal-dialog{
+    margin:0 !important;
+    max-width:100% !important;
+    width:100% !important;
+    height:100% !important;
+    align-items:flex-end !important;
+  }
+  .modal.fade .modal-dialog{transform:translateY(100%)}
+  .modal.show .modal-dialog{transform:translateY(0)}
+  .mpanel{
+    border-radius:20px 20px 0 0 !important;
+    max-height:92vh;overflow-y:auto;
+  }
+  .modal-dialog-centered{
+    align-items:flex-end !important;
+    min-height:100% !important;
+  }
+}
+
+/* Smooth scroll for tables on touch */
+.table-wrap{
+  -webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;
+}
+
+/* App-wrap must fill viewport */
+.app-wrap{
+  display:flex;flex-direction:column;min-height:100vh;
+}
