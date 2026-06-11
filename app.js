@@ -7,7 +7,7 @@ const USERS = {
 // Both roles now have access to ALL pages
 const ROLE_PAGES = {
   admin:      ['dashboard','credit','pending','loads','allloads','drivers'],
-  accountant: ['loads','drivers']
+  accountant: ['allloads','drivers']
 };
 
 // No view-only roles — both can add, edit, delete
