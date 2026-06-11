@@ -497,7 +497,18 @@ async function saveLoad() {
   const weight  = parseFloat(document.getElementById('fLoadsWt').value);
   const rate    = parseFloat(document.getElementById('fLoadsRate').value);
   if (!date || !vehicle || isNaN(weight) || weight<=0 || isNaN(rate) || rate<=0) { toast('⚠️ Fill all required fields','warn'); return; }
-  await upsert('loads', id, { date, vehicle, weight, rate, total:weight*rate, createdAt:new Date().toISOString() });
+  const woodType =
+document.getElementById('fWoodType').value;
+
+await upsert('loads', id, {
+  date,
+  vehicle,
+  woodType,
+  weight,
+  rate,
+  total:weight*rate,
+  createdAt:new Date().toISOString()
+});
   bootstrap.Modal.getInstance(document.getElementById('loadsModal'))?.hide();
 }
 
@@ -529,7 +540,15 @@ async function saveDriver() {
   const driverName = document.getElementById('fDriverName2').value.trim();
   const status     = document.getElementById('fDriverStatus').value;
   if (!date || !driverName || !status) { toast('⚠️ Fill all required fields','warn'); return; }
-  await upsert('drivers', id, { date, driverName, status, createdAt:new Date().toISOString() });
+  await upsert('drivers', id, {
+  date,
+  driverName,
+  status,
+  salary:11000,
+  paidAmount:0,
+  pendingAmount:0,
+  createdAt:new Date().toISOString()
+});
   bootstrap.Modal.getInstance(document.getElementById('driversModal'))?.hide();
 }
 
