@@ -250,6 +250,9 @@ body{font-family:'Outfit',system-ui,sans-serif}
     <a class="nav-item" data-page="drivers" href="#">
       <i class="bi bi-person-badge"></i><span>Driver Attendance</span>
     </a>
+    <a class="nav-item" data-page="driverexp" href="#">
+      <i class="bi bi-receipt"></i><span>Driver Expenses</span>
+    </a>
   </nav>
 
   <div class="sidebar-bottom">
@@ -603,6 +606,71 @@ body{font-family:'Outfit',system-ui,sans-serif}
     </div>
   </section>
 
+
+  <!-- ═══════════════════ DRIVER EXPENSES ═══════════════════ -->
+  <section class="page" id="page-driverexp">
+    <div class="page-head">
+      <div><h2 class="page-h">Driver Expenses</h2><p class="page-sub">Track expenses per driver — auto-added to monthly salary</p></div>
+      <div class="head-actions">
+        <button class="btn-outline" onclick="openPdfFilter('driverexp')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-primary" onclick="openModal('driverexp')"><i class="bi bi-plus-lg"></i> Add Expense</button>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="glass-card mb-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="flabel">Filter by Driver</label>
+          <select class="fselect" id="dexpDriverFilter" onchange="filterAndRender('driverexp')">
+            <option value="">All Drivers</option>
+            <option value="P Satish">P Satish</option>
+            <option value="A Sanker">A Sanker</option>
+            <option value="B Srinu">B Srinu</option>
+            <option value="D Srinu">D Srinu</option>
+            <option value="K Surinarayana">K Surinarayana</option>
+            <option value="N Santhosh">N Santhosh</option>
+            <option value="G Kanaka">G Kanaka</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="flabel">Filter by Month</label>
+          <input type="month" class="finput" id="dexpMonthFilter" oninput="filterAndRender('driverexp')"/>
+        </div>
+        <div class="col-md-5">
+          <div class="total-pill tp-red"><span class="tp-lbl">Total Expenses</span><span class="tp-val" id="dexpTotal">₹ 0.00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expenses Table -->
+    <div class="glass-card mb-4">
+      <div class="table-wrap">
+        <table class="ptable">
+          <thead><tr>
+            <th>#</th><th>Date</th><th>Driver</th><th>Beta (₹)</th>
+            <th>Meals (₹)</th><th>Half Loading (₹)</th><th>Other (₹)</th><th>Comment</th><th>Total (₹)</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="driverexpBody"></tbody>
+        </table>
+      </div>
+      <div class="pgbar" id="driverexpPg"></div>
+    </div>
+
+    <!-- Salary Summary Cards -->
+    <div class="glass-card">
+      <div class="gc-head"><i class="bi bi-wallet-fill" style="color:var(--amber)"></i> Driver Salary Summary — <span id="salarySummaryMonth"></span>
+        <select class="fselect ms-auto" id="salaryMonthPicker" onchange="renderSalarySummary()" style="width:auto;padding:5px 28px 5px 10px;font-size:12px"></select>
+      </div>
+      <div class="row g-3" id="salarySummaryCards">
+        <div class="col-12 text-center py-4" style="color:var(--muted);font-size:14px">
+          <i class="bi bi-person-lines-fill" style="font-size:30px;opacity:.3;display:block;margin-bottom:8px"></i>
+          Add driver expenses to see salary summary
+        </div>
+      </div>
+    </div>
+  </section>
+
 </div><!-- /main-wrap -->
 
 <!-- ═══════════════════ MODALS ═══════════════════ -->
@@ -850,6 +918,73 @@ body{font-family:'Outfit',system-ui,sans-serif}
   </div>
 </div>
 
+
+<!-- DRIVER EXPENSES MODAL -->
+<div class="modal fade" id="driverexpModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content mpanel">
+      <div class="mhead">
+        <h5><i class="bi bi-receipt"></i> <span id="driverexpModalTitle">Add Driver Expense</span></h5>
+        <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="mbody">
+        <input type="hidden" id="driverexpId"/>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Driver Name <span class="req">*</span></label>
+            <select class="fselect" id="fDexpDriver">
+              <option value="">Select Driver…</option>
+              <option value="P Satish">P Satish</option>
+              <option value="A Sanker">A Sanker</option>
+              <option value="B Srinu">B Srinu</option>
+              <option value="D Srinu">D Srinu</option>
+              <option value="K Surinarayana">K Surinarayana</option>
+              <option value="N Santhosh">N Santhosh</option>
+              <option value="G Kanaka">G Kanaka</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Date <span class="req">*</span></label>
+            <input type="date" class="finput" id="fDexpDate"/>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Beta (₹)</label>
+            <input type="number" class="finput" id="fDexpBeta" placeholder="0.00" min="0" step="0.01" oninput="calcDexpTotal()"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Meals (₹)</label>
+            <input type="number" class="finput" id="fDexpMeals" placeholder="0.00" min="0" step="0.01" oninput="calcDexpTotal()"/>
+          </div>
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Half Loading (₹)</label>
+            <input type="number" class="finput" id="fDexpHalf" placeholder="0.00" min="0" step="0.01" oninput="calcDexpTotal()"/>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Other (₹)</label>
+            <input type="number" class="finput" id="fDexpOther" placeholder="0.00" min="0" step="0.01" oninput="calcDexpTotal()"/>
+          </div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Comment (for Other)</label>
+          <input type="text" class="finput" id="fDexpComment" placeholder="Describe other expense…"/>
+        </div>
+        <div class="calc-box mt-2">
+          <span><i class="bi bi-calculator"></i> Total Expense</span>
+          <span class="calc-val" id="dexpCalcTotal">₹ 0.00</span>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-primary" onclick="saveDriverExp()"><i class="bi bi-check-lg"></i> Save Expense</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE CONFIRM MODAL -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -949,6 +1084,9 @@ body{font-family:'Outfit',system-ui,sans-serif}
     </button>
     <button class="mbn-item" data-page="drivers" onclick="mbnGo(this,'drivers')" id="mbn-drivers">
       <i class="bi bi-person-badge"></i>Staff
+    </button>
+    <button class="mbn-item" data-page="driverexp" onclick="mbnGo(this,'driverexp')" id="mbn-driverexp">
+      <i class="bi bi-receipt"></i>Exp
     </button>
   </div>
 </nav>
