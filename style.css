@@ -750,3 +750,71 @@ select.fselect{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
   .topbar-logout { padding: 6px 9px; }
   .topbar-logout i { font-size: 14px; }
 }
+
+/* ══════════════════════════════════
+   DRIVER EXPENSES & SALARY CARDS
+══════════════════════════════════ */
+
+/* Salary summary card */
+.salary-card {
+  background: var(--surf2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px;
+  transition: border-color var(--trans), box-shadow var(--trans);
+}
+.salary-card:hover {
+  border-color: var(--amber);
+  box-shadow: 0 4px 20px rgba(245,158,11,0.10);
+}
+
+.sc-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.sc-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--amber), var(--amber-d));
+  color: #fff; font-size: 15px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sc-name  { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+.sc-month { font-size: 11px; color: var(--muted); font-weight: 500; }
+
+.sc-rows { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.sc-row  {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--text); padding: 4px 0;
+}
+.sc-row span:first-child { color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.sc-exp span:first-child { font-size: 12px; }
+.sc-val-green { color: var(--green); font-family: 'JetBrains Mono',monospace; font-weight: 700; }
+.sc-val-red   { color: var(--red);   font-family: 'JetBrains Mono',monospace; font-weight: 600; }
+
+.sc-divider {
+  height: 1px; background: var(--border); margin: 6px 0;
+}
+.sc-total {
+  font-size: 14px; font-weight: 700;
+}
+.sc-total span:last-child {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px; font-weight: 800; color: var(--amber);
+}
+
+/* Progress bar showing expense ratio */
+.sc-progress-wrap {
+  height: 5px; background: var(--border);
+  border-radius: 3px; overflow: hidden; margin-bottom: 8px;
+}
+.sc-progress-bar {
+  height: 100%; background: linear-gradient(90deg, var(--amber), var(--amber-d));
+  border-radius: 3px; transition: width 0.5s ease;
+  min-width: 4px;
+}
+
+.sc-footer {
+  font-size: 11.5px; color: var(--muted); text-align: right;
+}
+.sc-footer strong { color: var(--red); }
