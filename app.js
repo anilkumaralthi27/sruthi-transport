@@ -6,8 +6,8 @@ const USERS = {
 
 // Both roles now have access to ALL pages
 const ROLE_PAGES = {
-  admin:      ['dashboard','credit','pending','loads','allloads','drivers'],
-  accountant: ['allloads','drivers']
+  admin:      ['dashboard','credit','pending','loads','allloads','drivers','driverexp'],
+  accountant: ['allloads','drivers','driverexp']
 };
 
 // No view-only roles — both can add, edit, delete
@@ -142,7 +142,8 @@ const data = {
   pending:  [],
   loads:    [],
   allLoads: [],
-  drivers:  []
+  drivers:  [],
+  driverexp:[]
 };
 
 const pg = {
@@ -150,7 +151,8 @@ const pg = {
   pending:  { cur:1, per:8, list:[] },
   loads:    { cur:1, per:8, list:[] },
   allLoads: { cur:1, per:8, list:[] },
-  drivers:  { cur:1, per:8, list:[] }
+  drivers:  { cur:1, per:8, list:[] },
+  driverexp:{ cur:1, per:8, list:[] }
 };
 
 // ── Init ─────────────────────────────────────────────
@@ -309,7 +311,7 @@ function go(page, skipHistory = false) {
   document.querySelectorAll('.page').forEach(s => s.classList.toggle('active', s.id === `page-${page}`));
   const titles = {
     dashboard:'Dashboard', credit:'Credit Amount', pending:'Spending Amount',
-    loads:'Loads to Saburi', allloads:'All Loads', drivers:'Driver Attendance'
+    loads:'Loads to Saburi', allloads:'All Loads', drivers:'Driver Attendance', driverexp:'Driver Expenses'
   };
   document.getElementById('pageTitle').textContent = titles[page] || page;
 
@@ -362,7 +364,7 @@ function applyTheme(t) {
 // ── Default dates ─────────────────────────────────────
 function setDates() {
   const t = new Date().toISOString().slice(0,10);
-  ['fCreditDate','fPendDate','fLoadsDate','fAllDate','fDriverDate'].forEach(id => {
+  ['fCreditDate','fPendDate','fLoadsDate','fAllDate','fDriverDate','fDexpDate'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = t;
   });
 }
@@ -371,7 +373,7 @@ function today() { return new Date().toISOString().slice(0,10); }
 // ── Load all ──────────────────────────────────────────
 async function loadAll() {
   spin(true);
-  await Promise.all(['credit','pending','loads','allLoads','drivers'].map(fetchCol));
+  await Promise.all(['credit','pending','loads','allLoads','drivers','driverexp'].map(fetchCol));
   spin(false);
   refreshDash();
 }
@@ -385,7 +387,7 @@ async function fetchCol(name) {
 }
 
 function loadFromLS() {
-  ['credit','pending','loads','allLoads','drivers'].forEach(n => {
+  ['credit','pending','loads','allLoads','drivers','driverexp'].forEach(n => {
     try { data[n] = JSON.parse(localStorage.getItem(`st-${n}`) || '[]'); } catch { data[n]=[]; }
     render(n);
   });
@@ -440,6 +442,20 @@ function openModal(name, rec = null) {
     document.getElementById('calcAllResult').textContent = rec ? '₹ '+fmt(rec.weight*rec.rate) : '₹ 0.00';
     document.getElementById('allLoadsModalTitle').textContent = rec ? 'Edit Load Entry' : 'Add Load Entry';
     new bootstrap.Modal(document.getElementById('allLoadsModal')).show();
+
+  } else if (name === 'driverexp') {
+    document.getElementById('driverexpId').value   = rec?.id || '';
+    document.getElementById('fDexpDriver').value   = rec?.driverName || '';
+    document.getElementById('fDexpDate').value     = rec?.date || today();
+    document.getElementById('fDexpBeta').value     = rec?.beta || '';
+    document.getElementById('fDexpMeals').value    = rec?.meals || '';
+    document.getElementById('fDexpHalf').value     = rec?.halfLoading || '';
+    document.getElementById('fDexpOther').value    = rec?.other || '';
+    document.getElementById('fDexpComment').value  = rec?.comment || '';
+    const tot = (parseFloat(rec?.beta||0)+parseFloat(rec?.meals||0)+parseFloat(rec?.halfLoading||0)+parseFloat(rec?.other||0));
+    document.getElementById('dexpCalcTotal').textContent = '₹ '+fmt(tot);
+    document.getElementById('driverexpModalTitle').textContent = rec ? 'Edit Expense' : 'Add Driver Expense';
+    new bootstrap.Modal(document.getElementById('driverexpModal')).show();
 
   } else if (name === 'drivers') {
     document.getElementById('driversId').value      = rec?.id || '';
@@ -582,9 +598,16 @@ function filtered(name) {
     if(name==='loads')    txt=`${r.vehicle} ${r.date} ${r.weight} ${r.rate}`;
     if(name==='allLoads') txt=`${r.vehicle} ${r.driverName} ${r.fromPlace} ${r.toPlace} ${r.partyPerson} ${r.loadingPerson} ${r.date}`;
     if(name==='drivers')  txt=`${r.driverName} ${r.status} ${r.date}`;
+    if(name==='driverexp') txt=`${r.driverName} ${r.date} ${r.comment||''}`;
     let ok = txt.toLowerCase().includes(q);
     if(name==='credit'  && co) ok = ok && r.company===co;
     if(name==='drivers' && ds) ok = ok && r.status===ds;
+    if(name==='driverexp') {
+      const df = document.getElementById('dexpDriverFilter')?.value||'';
+      const mf = document.getElementById('dexpMonthFilter')?.value||'';
+      if(df) ok = ok && r.driverName===df;
+      if(mf) ok = ok && (r.date||'').startsWith(mf);
+    }
     return ok;
   }).sort((a,b) => new Date(b.date)-new Date(a.date));
 }
@@ -601,6 +624,7 @@ function render(name) {
   if(name==='loads')    renderLoads(slice, offset);
   if(name==='allLoads') renderAllLoads(slice, offset);
   if(name==='drivers')  renderDrivers(slice, offset);
+  if(name==='driverexp') renderDriverExp(slice, offset);
   renderPg(name, rows.length);
   renderTotals(name, rows);
 }
@@ -699,6 +723,10 @@ function renderTotals(name, rows) {
   } else if(name==='drivers') {
     set('countPresent', rows.filter(r=>r.status==='Present').length);
     set('countAbsent',  rows.filter(r=>r.status==='Absent').length);
+  } else if(name==='driverexp') {
+    const tot = rows.reduce((s,r)=>s+(+r.total||0),0);
+    set('dexpTotal','₹ '+fmt(tot));
+    renderSalarySummary();
   }
 }
 
@@ -768,7 +796,7 @@ function openPdfFilter(name) {
   // Set modal label
   const labels = {
     credit:'Credit Amount', pending:'Spending Amount',
-    loads:'Loads to Saburi', allLoads:'All Loads', drivers:'Driver Attendance'
+    loads:'Loads to Saburi', allLoads:'All Loads', drivers:'Driver Attendance', driverexp:'Driver Expenses'
   };
   const lbl = document.getElementById('pdfModalLabel');
   if(lbl) lbl.textContent = labels[name] || name;
@@ -868,6 +896,7 @@ function exportPDF(name, customRows=null) {
   else if(name==='loads') { cols=['#','Date','Vehicle','Weight (T)','Rate/Ton','Total (INR)']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.weight,fmt(r.rate),fmt(r.total||r.weight*r.rate)]); }
   else if(name==='allLoads') { cols=['#','Date','Vehicle','Driver','From','To','Wt (T)','Total (INR)']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight,fmt(r.total||r.weight*r.rate)]); }
   else if(name==='drivers') { cols=['#','Date','Driver Name','Status']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.driverName,r.status]); }
+  else if(name==='driverexp') { cols=['#','Date','Driver','Beta','Meals','Half Load','Other','Comment','Total']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.driverName,fmt(r.beta||0),fmt(r.meals||0),fmt(r.halfLoading||0),fmt(r.other||0),r.comment||'—',fmt(r.total||0)]); }
 
   doc.autoTable({
     head:[cols], body, startY:58, margin:{left:14,right:14},
@@ -887,7 +916,7 @@ function exportPDF(name, customRows=null) {
     doc.text('Sruthi Transport Management System',14,293);
     doc.text(`Page ${i} of ${pc}`,196,293,{align:'right'});
   }
-  const fname={credit:'credit',pending:'spending',loads:'loads-saburi',allLoads:'all-loads',drivers:'driver-attendance'};
+  const fname={credit:'credit',pending:'spending',loads:'loads-saburi',allLoads:'all-loads',drivers:'driver-attendance',driverexp:'driver-expenses'};
   doc.save(`sruthi-${fname[name]||name}-${now.toISOString().slice(0,10)}.pdf`);
   toast('📄 PDF exported!','ok');
 }
@@ -1115,3 +1144,136 @@ applyTheme = function(t) {
     setTimeout(buildChart, 50);
   }
 };
+
+
+// ══════════════════════════════════════════════════════
+//  DRIVER EXPENSES MODULE
+// ══════════════════════════════════════════════════════
+
+const DRIVER_NAMES = ['P Satish','A Sanker','B Srinu','D Srinu','K Surinarayana','N Santhosh','G Kanaka'];
+const BASE_SALARY  = 10000;
+
+// ── Calc total when inputs change ──
+function calcDexpTotal() {
+  const b  = parseFloat(document.getElementById('fDexpBeta').value)  || 0;
+  const m  = parseFloat(document.getElementById('fDexpMeals').value) || 0;
+  const h  = parseFloat(document.getElementById('fDexpHalf').value)  || 0;
+  const o  = parseFloat(document.getElementById('fDexpOther').value) || 0;
+  document.getElementById('dexpCalcTotal').textContent = '₹ ' + fmt(b + m + h + o);
+}
+
+// ── Save Driver Expense ──
+async function saveDriverExp() {
+  const id         = document.getElementById('driverexpId').value;
+  const driverName = document.getElementById('fDexpDriver').value;
+  const date       = document.getElementById('fDexpDate').value;
+  const beta       = parseFloat(document.getElementById('fDexpBeta').value)  || 0;
+  const meals      = parseFloat(document.getElementById('fDexpMeals').value) || 0;
+  const halfLoading= parseFloat(document.getElementById('fDexpHalf').value)  || 0;
+  const other      = parseFloat(document.getElementById('fDexpOther').value) || 0;
+  const comment    = document.getElementById('fDexpComment').value.trim();
+  const total      = beta + meals + halfLoading + other;
+
+  if (!driverName || !date) { toast('⚠️ Select driver and date','warn'); return; }
+
+  const rec = { driverName, date, beta, meals, halfLoading, other, comment, total, createdAt: new Date().toISOString() };
+  await upsert('driverexp', id, rec);
+  bootstrap.Modal.getInstance(document.getElementById('driverexpModal'))?.hide();
+  renderSalarySummary();
+}
+
+// ── Render Driver Expenses Table ──
+function renderDriverExp(rows, off) {
+  const b = document.getElementById('driverexpBody'); if(!b) return;
+  if(!rows.length) { b.innerHTML = emptyRow(10); return; }
+  b.innerHTML = rows.map((r,i) => `<tr>
+    <td class="mono" style="color:var(--muted)">${off+i+1}</td>
+    <td>${fmtDate(r.date)}</td>
+    <td><strong>${r.driverName}</strong></td>
+    <td class="mono">${r.beta>0?'₹ '+fmt(r.beta):'—'}</td>
+    <td class="mono">${r.meals>0?'₹ '+fmt(r.meals):'—'}</td>
+    <td class="mono">${r.halfLoading>0?'₹ '+fmt(r.halfLoading):'—'}</td>
+    <td class="mono">${r.other>0?'₹ '+fmt(r.other):'—'}</td>
+    <td style="font-size:12px;color:var(--muted);max-width:120px;white-space:normal">${r.comment||'—'}</td>
+    <td class="c-red"><strong>₹ ${fmt(r.total||0)}</strong></td>
+    <td>
+      <button class="abtn abtn-edit me-1" onclick='openModal("driverexp",${js(r)})'><i class="bi bi-pencil-fill"></i></button>
+      <button class="abtn abtn-del" onclick='askDelete("driverexp","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
+    </td>
+  </tr>`).join('');
+}
+
+// ── Salary Summary ──
+function renderSalarySummary() {
+  // Populate month picker
+  const picker = document.getElementById('salaryMonthPicker');
+  if (!picker) return;
+
+  const allMonths = [...new Set(data.driverexp.map(r => (r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  const nowMonth  = new Date().toISOString().slice(0,7);
+  if (!allMonths.includes(nowMonth)) allMonths.unshift(nowMonth);
+
+  const existing = [...picker.options].map(o => o.value);
+  if (JSON.stringify(existing) !== JSON.stringify(allMonths)) {
+    picker.innerHTML = allMonths.map(m => {
+      const [y,mo] = m.split('-');
+      const label  = new Date(y, parseInt(mo)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+      return `<option value="${m}">${label}</option>`;
+    }).join('');
+  }
+
+  const selMonth = picker.value || nowMonth;
+  const [sy,sm]  = selMonth.split('-');
+  const label     = new Date(parseInt(sy), parseInt(sm)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+  set('salarySummaryMonth', label);
+
+  // Filter expenses for selected month
+  const monthExp = data.driverexp.filter(r => (r.date||'').startsWith(selMonth));
+
+  // Build per-driver summary
+  const container = document.getElementById('salarySummaryCards');
+  if (!container) return;
+
+  if (!monthExp.length && !DRIVER_NAMES.length) {
+    container.innerHTML = '<div class="col-12 text-center py-4" style="color:var(--muted)">No expense data for this month</div>';
+    return;
+  }
+
+  container.innerHTML = DRIVER_NAMES.map(name => {
+    const dExp   = monthExp.filter(r => r.driverName === name);
+    const expAmt = dExp.reduce((s,r) => s+(+r.total||0), 0);
+    const totalSal = BASE_SALARY + expAmt;
+
+    // Breakdown
+    const beta  = dExp.reduce((s,r)=>s+(+r.beta||0),0);
+    const meals = dExp.reduce((s,r)=>s+(+r.meals||0),0);
+    const half  = dExp.reduce((s,r)=>s+(+r.halfLoading||0),0);
+    const other = dExp.reduce((s,r)=>s+(+r.other||0),0);
+
+    const pct = Math.min(100, Math.round((expAmt / BASE_SALARY) * 100));
+
+    return `
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="salary-card">
+        <div class="sc-header">
+          <div class="sc-avatar">${name.charAt(0)}</div>
+          <div class="sc-name">${name}</div>
+          <div class="sc-month">${label}</div>
+        </div>
+        <div class="sc-rows">
+          <div class="sc-row"><span>Base Salary</span><span class="sc-val-green">₹ ${fmt(BASE_SALARY)}</span></div>
+          ${beta>0  ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Beta</span><span class="sc-val-red">₹ ${fmt(beta)}</span></div>`:''}
+          ${meals>0 ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Meals</span><span class="sc-val-red">₹ ${fmt(meals)}</span></div>`:''}
+          ${half>0  ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Half Loading</span><span class="sc-val-red">₹ ${fmt(half)}</span></div>`:''}
+          ${other>0 ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Other</span><span class="sc-val-red">₹ ${fmt(other)}</span></div>`:''}
+          <div class="sc-divider"></div>
+          <div class="sc-row sc-total"><span>Total Salary</span><span>₹ ${fmt(totalSal)}</span></div>
+        </div>
+        <div class="sc-progress-wrap">
+          <div class="sc-progress-bar" style="width:${pct}%"></div>
+        </div>
+        <div class="sc-footer">Expenses: <strong>₹ ${fmt(expAmt)}</strong> · ${dExp.length} entr${dExp.length===1?'y':'ies'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
