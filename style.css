@@ -818,3 +818,131 @@ select.fselect{appearance:none;background-image:url("data:image/svg+xml,%3Csvg x
   font-size: 11.5px; color: var(--muted); text-align: right;
 }
 .sc-footer strong { color: var(--red); }
+
+/* ══════════════════════════════════
+   PROFIT SUMMARY PANEL (All Loads Modal)
+══════════════════════════════════ */
+.profit-summary {
+  background: var(--surf2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ps-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text);
+}
+.ps-row span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.ps-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 13px;
+}
+.ps-minus { color: var(--red); }
+
+.ps-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.ps-profit-row {
+  font-weight: 700;
+  font-size: 14px;
+}
+.ps-profit-row span:first-child { color: var(--text); }
+.ps-profit-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 800;
+}
+.profit-pos { color: var(--green); }
+.profit-neg { color: var(--red); }
+
+/* All Loads table - profit cell colour handled inline via c-green / c-red */
+
+/* ══════════════════════════════════
+   ALL LOADS — PDF VIEW TOGGLE BUTTONS
+══════════════════════════════════ */
+.pdf-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surf2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 5px 10px;
+}
+.pdf-toggle-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 2px;
+}
+.pdf-tog-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: var(--surf);
+  color: var(--muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--trans);
+  white-space: nowrap;
+}
+.pdf-tog-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+/* Buying active → blue tint */
+#togBuying.active {
+  background: rgba(59,130,246,0.12);
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+/* Selling active → green tint */
+#togSelling.active {
+  background: rgba(16,185,129,0.12);
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.15);
+}
+/* Both OFF → amber hint (default/both state indicator) */
+.pdf-toggle-group:has(.pdf-tog-btn:not(.active):nth-child(2)):has(.pdf-tog-btn:not(.active):nth-child(3)) .pdf-toggle-label {
+  color: var(--amber);
+}
+
+/* Mobile: stack if needed */
+@media(max-width:768px) {
+  .pdf-toggle-group {
+    flex-wrap: wrap;
+    padding: 5px 8px;
+    gap: 5px;
+  }
+  .pdf-toggle-label { font-size: 10.5px; }
+  .pdf-tog-btn { padding: 4px 9px; font-size: 11.5px; }
+}
+@media(max-width:576px) {
+  .pdf-toggle-group { width: 100%; justify-content: space-between; }
+}
