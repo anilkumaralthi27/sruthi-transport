@@ -53,6 +53,13 @@ function doLogin() {
       currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials };
       sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
 
+      // Save credentials if Remember Me is checked
+      if (document.getElementById('rememberMe')?.checked) {
+        localStorage.setItem('st-remember', JSON.stringify({ id, pass }));
+      } else {
+        localStorage.removeItem('st-remember');
+      }
+
       const screen = document.getElementById('loginScreen');
       screen.style.transition = 'opacity .5s ease';
       screen.style.opacity = '0';
@@ -124,6 +131,34 @@ function togglePw() {
   }
 }
 
+// ── Remember Me ────────────────────────────────
+function initRememberMe() {
+  const saved = localStorage.getItem('st-remember');
+  if (!saved) return;
+  try {
+    const { id, pass } = JSON.parse(saved);
+    const idEl   = document.getElementById('loginId');
+    const passEl = document.getElementById('loginPass');
+    const cbEl   = document.getElementById('rememberMe');
+    const hint   = document.getElementById('savedHint');
+    if (idEl && passEl && id) {
+      idEl.value   = id;
+      passEl.value = pass;
+      if (cbEl) cbEl.checked = true;
+      if (hint) hint.textContent = `✓ ${id} saved`;
+    }
+  } catch {}
+}
+
+function toggleRemember() {
+  const cb   = document.getElementById('rememberMe');
+  const hint = document.getElementById('savedHint');
+  if (!cb.checked) {
+    localStorage.removeItem('st-remember');
+    if (hint) hint.textContent = '';
+  }
+}
+
 /* ════════════════════════════════════════════════════
    SRUTHI TRANSPORT — app.js  (v2)
    5 Modules: Credit · Spending · Loads · All Loads · Drivers
@@ -136,6 +171,7 @@ let db = null;
 let useLS = false;
 let delCb = null;
 let pdfModule = '';
+let allLoadsPdfView = 'both'; // 'buying' | 'selling' | 'both'
 
 const data = {
   credit:   [],
@@ -158,6 +194,7 @@ const pg = {
 // ── Init ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initClock();
+  initRememberMe();
   if (checkAuth()) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appWrap').classList.remove('d-none');
@@ -439,7 +476,12 @@ function openModal(name, rec = null) {
     document.getElementById('fLoadingPerson').value    = rec?.loadingPerson || '';
     document.getElementById('fAllWeight').value        = rec?.weight || '';
     document.getElementById('fAllRate').value          = rec?.rate || '';
+    document.getElementById('fAllSellRate').value      = rec?.sellRate || '';
+    document.getElementById('fAllFuelCost').value      = rec?.fuelCost || '';
+    document.getElementById('fAllOtherCost').value     = rec?.otherCost || '';
     document.getElementById('calcAllResult').textContent = rec ? '₹ '+fmt(rec.weight*rec.rate) : '₹ 0.00';
+    // Trigger profit calc on open
+    setTimeout(calcAllTotal, 50);
     document.getElementById('allLoadsModalTitle').textContent = rec ? 'Edit Load Entry' : 'Add Load Entry';
     new bootstrap.Modal(document.getElementById('allLoadsModal')).show();
 
@@ -517,10 +559,16 @@ async function saveAllLoad() {
   const loadingPerson  = document.getElementById('fLoadingPerson').value.trim();
   const weight      = parseFloat(document.getElementById('fAllWeight').value);
   const rate        = parseFloat(document.getElementById('fAllRate').value);
+  const sellRate    = parseFloat(document.getElementById('fAllSellRate').value) || 0;
+  const fuelCost    = parseFloat(document.getElementById('fAllFuelCost').value) || 0;
+  const otherCost   = parseFloat(document.getElementById('fAllOtherCost').value)|| 0;
   if (!date || !vehicle || !driverName || !fromPlace || !toPlace || isNaN(weight) || weight<=0 || isNaN(rate) || rate<=0) {
     toast('⚠️ Fill all required fields (Date, Vehicle, Driver, From, To, Weight, Rate)','warn'); return;
   }
-  await upsert('allLoads', id, { date, vehicle, driverName, driverBeta, fromPlace, toPlace, fuel, partyPerson, loadingPerson, weight, rate, total:weight*rate, createdAt:new Date().toISOString() });
+  const buyTotal  = weight * rate;
+  const sellTotal = weight * sellRate;
+  const profit    = sellTotal - buyTotal - fuelCost - driverBeta - otherCost;
+  await upsert('allLoads', id, { date, vehicle, driverName, driverBeta, fromPlace, toPlace, fuel, partyPerson, loadingPerson, weight, rate, sellRate, fuelCost, otherCost, total:buyTotal, sellTotal, profit, createdAt:new Date().toISOString() });
   bootstrap.Modal.getInstance(document.getElementById('allLoadsModal'))?.hide();
 }
 
@@ -542,9 +590,33 @@ function calcTotal() {
   document.getElementById('calcResult').textContent = '₹ '+fmt(w*r);
 }
 function calcAllTotal() {
-  const w = parseFloat(document.getElementById('fAllWeight').value)||0;
-  const r = parseFloat(document.getElementById('fAllRate').value)||0;
-  document.getElementById('calcAllResult').textContent = '₹ '+fmt(w*r);
+  const w    = parseFloat(document.getElementById('fAllWeight').value)   || 0;
+  const buy  = parseFloat(document.getElementById('fAllRate').value)     || 0;
+  const sell = parseFloat(document.getElementById('fAllSellRate').value) || 0;
+  const fuel = parseFloat(document.getElementById('fAllFuelCost').value) || 0;
+  const beta = parseFloat(document.getElementById('fDriverBeta').value)  || 0;
+  const oth  = parseFloat(document.getElementById('fAllOtherCost').value)|| 0;
+
+  const buyTotal  = w * buy;
+  const sellTotal = w * sell;
+  const profit    = sellTotal - buyTotal - fuel - beta - oth;
+
+  // Update legacy calc result (buying total)
+  const cr = document.getElementById('calcAllResult');
+  if (cr) cr.textContent = '₹ ' + fmt(buyTotal);
+
+  // Update profit summary
+  set('psSell',  '₹ ' + fmt(sellTotal));
+  set('psBuy',   '₹ ' + fmt(buyTotal));
+  set('psFuel',  '₹ ' + fmt(fuel));
+  set('psBeta',  '₹ ' + fmt(beta));
+  set('psOther', '₹ ' + fmt(oth));
+
+  const profEl = document.getElementById('psProfit');
+  if (profEl) {
+    profEl.textContent = (profit >= 0 ? '₹ ' : '- ₹ ') + fmt(Math.abs(profit));
+    profEl.className   = 'ps-profit-val ' + (profit >= 0 ? 'profit-pos' : 'profit-neg');
+  }
 }
 
 // ── Generic upsert ────────────────────────────────────
@@ -671,8 +743,13 @@ function renderLoads(rows, off) {
 
 function renderAllLoads(rows, off) {
   const b=document.getElementById('allLoadsBody'); if(!b) return;
-  if(!rows.length) { b.innerHTML=emptyRow(9); return; }
-  b.innerHTML=rows.map((r,i)=>`<tr>
+  if(!rows.length) { b.innerHTML=emptyRow(11); return; }
+  b.innerHTML=rows.map((r,i)=>{
+    const buyAmt  = r.total || (r.weight * r.rate) || 0;
+    const sellAmt = r.sellTotal || (r.weight * (r.sellRate||0)) || 0;
+    const profit  = r.profit !== undefined ? r.profit : (sellAmt - buyAmt - (r.fuelCost||0) - (r.driverBeta||0) - (r.otherCost||0));
+    const profCls = profit > 0 ? 'c-green' : profit < 0 ? 'c-red' : 'mono';
+    return `<tr>
     <td class="mono" style="color:var(--muted)">${off+i+1}</td>
     <td>${fmtDate(r.date)}</td>
     <td class="mono" style="letter-spacing:.06em">${r.vehicle}</td>
@@ -680,9 +757,11 @@ function renderAllLoads(rows, off) {
     <td style="color:var(--muted);font-size:12.5px">${r.fromPlace}</td>
     <td style="color:var(--muted);font-size:12.5px">${r.toPlace}</td>
     <td class="mono">${r.weight} T</td>
-    <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
+    <td class="mono" style="color:var(--muted)">₹ ${fmt(buyAmt)}</td>
+    <td class="c-green">₹ ${fmt(sellAmt)}</td>
+    <td class="${profCls}"><strong>${profit>=0?'':'−'}₹ ${fmt(Math.abs(profit))}</strong></td>
     <td><button class="abtn abtn-edit me-1" onclick='openModal("allLoads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("allLoads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
-  </tr>`).join('');
+  </tr>`;}).join('');
 }
 
 function renderDrivers(rows, off) {
@@ -791,6 +870,30 @@ function refreshDash() {
 }
 
 // ── PDF Filter ────────────────────────────────────────
+// ── All Loads PDF view toggle ─────────────────────────
+function togglePdfView(mode) {
+  // If clicking the already-active button → deactivate both (show both)
+  if (allLoadsPdfView === mode) {
+    allLoadsPdfView = 'both';
+    document.getElementById('togBuying')?.classList.remove('active');
+    document.getElementById('togSelling')?.classList.remove('active');
+  } else {
+    allLoadsPdfView = mode;
+    document.getElementById('togBuying')?.classList.toggle('active',  mode === 'buying');
+    document.getElementById('togSelling')?.classList.toggle('active', mode === 'selling');
+  }
+  // Update label hint on buttons
+  updateToggleHints();
+}
+
+function updateToggleHints() {
+  const bBtn = document.getElementById('togBuying');
+  const sBtn = document.getElementById('togSelling');
+  const mode = allLoadsPdfView;
+  if (bBtn) bBtn.title = mode === 'buying'  ? 'Active – PDF shows Buying only (click to deactivate)' : 'Show Buying columns only in PDF';
+  if (sBtn) sBtn.title = mode === 'selling' ? 'Active – PDF shows Selling only (click to deactivate)' : 'Show Selling columns only in PDF';
+}
+
 function openPdfFilter(name) {
   pdfModule = name;
   // Set modal label
@@ -799,7 +902,11 @@ function openPdfFilter(name) {
     loads:'Loads to Saburi', allLoads:'All Loads', drivers:'Driver Attendance', driverexp:'Driver Expenses'
   };
   const lbl = document.getElementById('pdfModalLabel');
-  if(lbl) lbl.textContent = labels[name] || name;
+  let labelText = labels[name] || name;
+  if(name === 'allLoads' && allLoadsPdfView !== 'both') {
+    labelText += ' (' + (allLoadsPdfView === 'buying' ? 'Buying only' : 'Selling only') + ')';
+  }
+  if(lbl) lbl.textContent = labelText;
   // Reset to current month selected
   document.querySelectorAll('.pdf-opt').forEach(el => {
     el.classList.toggle('selected', el.dataset.val === 'current');
@@ -878,11 +985,21 @@ function exportPDF(name, customRows=null) {
   doc.text(`Total Records: ${rows.length}`, 20,47);
   if(name==='credit')   doc.text(`Grand Total: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`,110,47);
   if(name==='pending')  doc.text(`Total Spending: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`,110,47);
-  if(name==='loads'||name==='allLoads') {
+  if(name==='loads') {
     const tw=rows.reduce((s,r)=>s+(+r.weight||0),0);
     const ta=rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
     doc.text(`Total Weight: ${tw.toFixed(2)} T`, 70,47);
     doc.text(`Total Amt: INR ${fmt(ta)}`, 130,47);
+  }
+  if(name==='allLoads') {
+    const view = allLoadsPdfView || 'both';
+    const tw   = rows.reduce((s,r)=>s+(+r.weight||0),0);
+    const tBuy = rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
+    const tSell= rows.reduce((s,r)=>s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0),0);
+    const tProfit=tSell-tBuy;
+    if(view==='buying')  { doc.text(`Total Weight: ${tw.toFixed(2)} T`,60,47); doc.text(`Total Buying: INR ${fmt(tBuy)}`,120,47); }
+    else if(view==='selling') { doc.text(`Total Weight: ${tw.toFixed(2)} T`,60,47); doc.text(`Total Selling: INR ${fmt(tSell)}`,120,47); }
+    else { doc.text(`Buy: INR ${fmt(tBuy)}`,50,47); doc.text(`Sell: INR ${fmt(tSell)}`,105,47); doc.text(`Profit: INR ${fmt(tProfit)}`,160,47); }
   }
   if(name==='drivers') {
     doc.text(`Present: ${rows.filter(r=>r.status==='Present').length}`, 80,47);
@@ -894,7 +1011,33 @@ function exportPDF(name, customRows=null) {
   if(name==='credit')  { cols=['#','Company','Date','Amount (INR)','To Whom']; body=rows.map((r,i)=>[i+1,r.company,fmtDate(r.date),fmt(r.amount),r.account]); }
   else if(name==='pending') { cols=['#','Name','Amount (INR)','Date','Reason']; body=rows.map((r,i)=>[i+1,r.name,fmt(r.amount),fmtDate(r.date),r.reason]); }
   else if(name==='loads') { cols=['#','Date','Vehicle','Weight (T)','Rate/Ton','Total (INR)']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.weight,fmt(r.rate),fmt(r.total||r.weight*r.rate)]); }
-  else if(name==='allLoads') { cols=['#','Date','Vehicle','Driver','From','To','Wt (T)','Total (INR)']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight,fmt(r.total||r.weight*r.rate)]); }
+  else if(name==='allLoads') {
+    const view = allLoadsPdfView || 'both';
+    if (view === 'buying') {
+      // Buying only — no selling/profit columns
+      cols = ['#','Date','Vehicle','Driver','From','To','Weight (T)','Buy Rate','Buying Total (INR)'];
+      body = rows.map((r,i) => {
+        const buyAmt = r.total||(r.weight*r.rate)||0;
+        return [i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+'T', '₹'+fmt(r.rate||0), fmt(buyAmt)];
+      });
+    } else if (view === 'selling') {
+      // Selling only — no buying/profit columns
+      cols = ['#','Date','Vehicle','Driver','From','To','Weight (T)','Sell Rate','Selling Total (INR)'];
+      body = rows.map((r,i) => {
+        const sellAmt = r.sellTotal||(r.weight*(r.sellRate||0))||0;
+        return [i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+'T', '₹'+fmt(r.sellRate||0), fmt(sellAmt)];
+      });
+    } else {
+      // Both + Profit (default)
+      cols = ['#','Date','Vehicle','Driver','From','To','Wt (T)','Buy (INR)','Sell (INR)','Profit (INR)'];
+      body = rows.map((r,i) => {
+        const buyAmt  = r.total||(r.weight*r.rate)||0;
+        const sellAmt = r.sellTotal||(r.weight*(r.sellRate||0))||0;
+        const profit  = r.profit!==undefined ? r.profit : (sellAmt-buyAmt-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
+        return [i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight, fmt(buyAmt), fmt(sellAmt), fmt(profit)];
+      });
+    }
+  }
   else if(name==='drivers') { cols=['#','Date','Driver Name','Status']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.driverName,r.status]); }
   else if(name==='driverexp') { cols=['#','Date','Driver','Beta','Meals','Half Load','Other','Comment','Total']; body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.driverName,fmt(r.beta||0),fmt(r.meals||0),fmt(r.halfLoading||0),fmt(r.other||0),r.comment||'—',fmt(r.total||0)]); }
 
