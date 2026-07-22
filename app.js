@@ -166,6 +166,9 @@ function toggleRemember() {
 ════════════════════════════════════════════════════ */
 'use strict';
 
+// ── Record cache for safe edit (avoids JSON-in-HTML issues) ──
+const _editCache = {};
+
 // ── State ────────────────────────────────────────────
 let db = null;
 let useLS = false;
@@ -493,9 +496,11 @@ function openModal(name, rec = null) {
     document.getElementById('fDexpMeals').value    = rec?.meals || '';
     document.getElementById('fDexpHalf').value     = rec?.halfLoading || '';
     document.getElementById('fDexpOther').value    = rec?.other || '';
-    document.getElementById('fDexpComment').value  = rec?.comment || '';
+    document.getElementById('fDexpComment').value    = rec?.comment || '';
+    document.getElementById('fDexpAllowance').value  = rec?.dailyAllowance !== undefined ? rec.dailyAllowance : DAILY_ALLOWANCE;
     const tot = (parseFloat(rec?.beta||0)+parseFloat(rec?.meals||0)+parseFloat(rec?.halfLoading||0)+parseFloat(rec?.other||0));
     document.getElementById('dexpCalcTotal').textContent = '₹ '+fmt(tot);
+    setTimeout(calcDexpNet, 30);
     document.getElementById('driverexpModalTitle').textContent = rec ? 'Edit Expense' : 'Add Driver Expense';
     new bootstrap.Modal(document.getElementById('driverexpModal')).show();
 
@@ -710,7 +715,7 @@ function renderCredit(rows, off) {
     <td>${fmtDate(r.date)}</td>
     <td class="c-green">₹ ${fmt(r.amount)}</td>
     <td>${r.account}</td>
-    <td><button class="abtn abtn-edit me-1" onclick='openModal("credit",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("credit","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
+    <td><button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit(\"credit\",r)}")'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("credit","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -723,7 +728,7 @@ function renderPending(rows, off) {
     <td class="c-red">₹ ${fmt(r.amount)}</td>
     <td>${fmtDate(r.date)}</td>
     <td style="max-width:180px;white-space:normal;font-size:12.5px;color:var(--muted)">${r.reason}</td>
-    <td><button class="abtn abtn-edit me-1" onclick='openModal("pending",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("pending","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
+    <td><button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit(\"pending\",r)}")'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("pending","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -737,7 +742,7 @@ function renderLoads(rows, off) {
     <td class="mono">${r.weight} T</td>
     <td class="mono">₹ ${fmt(r.rate)}</td>
     <td class="c-green">₹ ${fmt(r.total||r.weight*r.rate)}</td>
-    <td><button class="abtn abtn-edit me-1" onclick='openModal("loads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
+    <td><button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit(\"loads\",r)}")'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("loads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -760,7 +765,7 @@ function renderAllLoads(rows, off) {
     <td class="mono" style="color:var(--muted)">₹ ${fmt(buyAmt)}</td>
     <td class="c-green">₹ ${fmt(sellAmt)}</td>
     <td class="${profCls}"><strong>${profit>=0?'':'−'}₹ ${fmt(Math.abs(profit))}</strong></td>
-    <td><button class="abtn abtn-edit me-1" onclick='openModal("allLoads",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("allLoads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
+    <td><button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit("allLoads",r)}")'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("allLoads","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`;}).join('');
 }
 
@@ -772,7 +777,7 @@ function renderDrivers(rows, off) {
     <td>${fmtDate(r.date)}</td>
     <td><strong>${r.driverName}</strong></td>
     <td>${statusBadge(r.status)}</td>
-    <td><button class="abtn abtn-edit me-1" onclick='openModal("drivers",${js(r)})'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
+    <td><button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit(\"drivers\",r)}")'><i class="bi bi-pencil-fill"></i></button><button class="abtn abtn-del" onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button></td>
   </tr>`).join('');
 }
 
@@ -786,6 +791,19 @@ function emptyRow(cols) {
   return `<tr class="empty-row"><td colspan="${cols}"><i class="bi bi-inbox"></i><br/>No records found</td></tr>`;
 }
 function js(r) { return JSON.stringify(r).replace(/'/g,"&#39;"); }
+
+// Safe edit: store record in cache, pass only the id to onclick
+function cacheEdit(name, r) {
+  const key = name + '_' + r.id;
+  _editCache[key] = r;
+  return key;
+}
+function editFromCache(key) {
+  const r = _editCache[key];
+  if (!r) { toast('⚠️ Record not found, please refresh','warn'); return; }
+  const name = key.split('_')[0];
+  openModal(name, r);
+}
 
 // ── Totals ────────────────────────────────────────────
 function renderTotals(name, rows) {
@@ -1294,15 +1312,52 @@ applyTheme = function(t) {
 // ══════════════════════════════════════════════════════
 
 const DRIVER_NAMES = ['P Satish','A Sanker','B Srinu','D Srinu','K Surinarayana','N Santhosh','G Kanaka'];
-const BASE_SALARY  = 10000;
+const BASE_SALARY      = 10000;  // Monthly base salary ₹10,000
+const DAILY_ALLOWANCE  = 500;    // Default daily allowance ₹500 (editable per record)
 
-// ── Calc total when inputs change ──
+// ── Calc total + net adjustment when inputs change ──
 function calcDexpTotal() {
   const b  = parseFloat(document.getElementById('fDexpBeta').value)  || 0;
   const m  = parseFloat(document.getElementById('fDexpMeals').value) || 0;
   const h  = parseFloat(document.getElementById('fDexpHalf').value)  || 0;
   const o  = parseFloat(document.getElementById('fDexpOther').value) || 0;
-  document.getElementById('dexpCalcTotal').textContent = '₹ ' + fmt(b + m + h + o);
+  const total = b + m + h + o;
+  document.getElementById('dexpCalcTotal').textContent = '₹ ' + fmt(total);
+  calcDexpNet();
+}
+
+function calcDexpNet() {
+  const b         = parseFloat(document.getElementById('fDexpBeta').value)      || 0;
+  const m         = parseFloat(document.getElementById('fDexpMeals').value)     || 0;
+  const h         = parseFloat(document.getElementById('fDexpHalf').value)      || 0;
+  const o         = parseFloat(document.getElementById('fDexpOther').value)     || 0;
+  const allowance = parseFloat(document.getElementById('fDexpAllowance').value) || DAILY_ALLOWANCE;
+  const spent     = b + m + h + o;
+  const net       = spent - allowance;
+
+  const netLbl = document.getElementById('dexpNetLabel');
+  const netVal = document.getElementById('dexpNetVal');
+  const netBox = document.getElementById('dexpNetBox');
+  if (!netVal) return;
+
+  if (net > 0) {
+    // Over allowance — add to salary
+    if (netLbl) netLbl.innerHTML = '<i class="bi bi-arrow-up-circle-fill" style="color:var(--red)"></i> Extra (adds to salary)';
+    netVal.textContent  = '+ ₹ ' + fmt(net);
+    netVal.style.color  = 'var(--red)';
+    if (netBox) netBox.style.borderColor = 'rgba(239,68,68,0.35)';
+  } else if (net < 0) {
+    // Under allowance — deduct from salary
+    if (netLbl) netLbl.innerHTML = '<i class="bi bi-arrow-down-circle-fill" style="color:var(--green)"></i> Saving (deducts from salary)';
+    netVal.textContent  = '− ₹ ' + fmt(Math.abs(net));
+    netVal.style.color  = 'var(--green)';
+    if (netBox) netBox.style.borderColor = 'rgba(16,185,129,0.35)';
+  } else {
+    if (netLbl) netLbl.innerHTML = '<i class="bi bi-check-circle-fill" style="color:var(--blue)"></i> Exact allowance';
+    netVal.textContent  = '₹ 0.00';
+    netVal.style.color  = 'var(--blue)';
+    if (netBox) netBox.style.borderColor = 'rgba(59,130,246,0.35)';
+  }
 }
 
 // ── Save Driver Expense ──
@@ -1319,7 +1374,11 @@ async function saveDriverExp() {
 
   if (!driverName || !date) { toast('⚠️ Select driver and date','warn'); return; }
 
-  const rec = { driverName, date, beta, meals, halfLoading, other, comment, total, createdAt: new Date().toISOString() };
+  const dailyAllowance = parseFloat(document.getElementById('fDexpAllowance').value) || DAILY_ALLOWANCE;
+  const actualSpent = total;
+  // Net adjustment: positive = extra expense on top of salary, negative = saving (deduct from salary)
+  const netAdjustment = actualSpent - dailyAllowance;
+  const rec = { driverName, date, beta, meals, halfLoading, other, comment, total: actualSpent, dailyAllowance, netAdjustment, createdAt: new Date().toISOString() };
   await upsert('driverexp', id, rec);
   bootstrap.Modal.getInstance(document.getElementById('driverexpModal'))?.hide();
   renderSalarySummary();
@@ -1340,7 +1399,7 @@ function renderDriverExp(rows, off) {
     <td style="font-size:12px;color:var(--muted);max-width:120px;white-space:normal">${r.comment||'—'}</td>
     <td class="c-red"><strong>₹ ${fmt(r.total||0)}</strong></td>
     <td>
-      <button class="abtn abtn-edit me-1" onclick='openModal("driverexp",${js(r)})'><i class="bi bi-pencil-fill"></i></button>
+      <button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit("driverexp",r)}")'><i class="bi bi-pencil-fill"></i></button>
       <button class="abtn abtn-del" onclick='askDelete("driverexp","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
     </td>
   </tr>`).join('');
@@ -1395,6 +1454,28 @@ function renderSalarySummary() {
 
     const pct = Math.min(100, Math.round((expAmt / BASE_SALARY) * 100));
 
+    // Allowance-based net adjustment
+    // If spent < allowance → save money → deduct from salary (subtract saving)
+    // If spent > allowance → over-spent → add extra to salary
+    // netAdjustment = actualSpent - dailyAllowance (per entry, already stored)
+    // Sum all netAdjustments for the month
+    const totalAllowance = dExp.reduce((s,r) => s + (r.dailyAllowance || DAILY_ALLOWANCE), 0);
+    const netAdj = dExp.reduce((s,r) => {
+      if (r.netAdjustment !== undefined) return s + r.netAdjustment;
+      return s + ((r.total||0) - (r.dailyAllowance || DAILY_ALLOWANCE));
+    }, 0);
+
+    // Final salary = BASE + net adjustments
+    // If driver spent LESS than allowance → negative netAdj → final salary reduced
+    // If driver spent MORE than allowance → positive netAdj → final salary increased
+    const finalSalary = BASE_SALARY + netAdj;
+
+    const saving = netAdj < 0 ? Math.abs(netAdj) : 0;   // amount saved (deducted)
+    const extra  = netAdj > 0 ? netAdj : 0;               // amount extra (added)
+
+    const pct = Math.min(100, Math.round((Math.abs(netAdj) / BASE_SALARY) * 100));
+    const progressColor = netAdj > 0 ? 'var(--red)' : 'var(--green)';
+
     return `
     <div class="col-12 col-md-6 col-xl-4">
       <div class="salary-card">
@@ -1405,17 +1486,28 @@ function renderSalarySummary() {
         </div>
         <div class="sc-rows">
           <div class="sc-row"><span>Base Salary</span><span class="sc-val-green">₹ ${fmt(BASE_SALARY)}</span></div>
-          ${beta>0  ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Beta</span><span class="sc-val-red">₹ ${fmt(beta)}</span></div>`:''}
-          ${meals>0 ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Meals</span><span class="sc-val-red">₹ ${fmt(meals)}</span></div>`:''}
-          ${half>0  ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Half Loading</span><span class="sc-val-red">₹ ${fmt(half)}</span></div>`:''}
-          ${other>0 ?`<div class="sc-row sc-exp"><span><i class="bi bi-plus-circle"></i> Other</span><span class="sc-val-red">₹ ${fmt(other)}</span></div>`:''}
+          <div class="sc-row"><span><i class="bi bi-calendar-check"></i> Total Allowance</span><span class="sc-val" style="color:var(--blue)">₹ ${fmt(totalAllowance)}</span></div>
+          <div class="sc-row"><span><i class="bi bi-receipt"></i> Actual Spent</span><span class="sc-val" style="color:var(--muted)">₹ ${fmt(expAmt)}</span></div>
+          ${beta>0  ?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Beta</span><span class="sc-val-red">₹ ${fmt(beta)}</span></div>`:''}
+          ${meals>0 ?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Meals</span><span class="sc-val-red">₹ ${fmt(meals)}</span></div>`:''}
+          ${half>0  ?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Half Loading</span><span class="sc-val-red">₹ ${fmt(half)}</span></div>`:''}
+          ${other>0 ?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Other</span><span class="sc-val-red">₹ ${fmt(other)}</span></div>`:''}
           <div class="sc-divider"></div>
-          <div class="sc-row sc-total"><span>Total Salary</span><span>₹ ${fmt(totalSal)}</span></div>
+          ${netAdj > 0
+            ? `<div class="sc-row"><span><i class="bi bi-arrow-up-circle-fill" style="color:var(--red)"></i> Extra Added</span><span class="sc-val-red">+ ₹ ${fmt(extra)}</span></div>`
+            : netAdj < 0
+            ? `<div class="sc-row"><span><i class="bi bi-arrow-down-circle-fill" style="color:var(--green)"></i> Saving Deducted</span><span class="sc-val-green">− ₹ ${fmt(saving)}</span></div>`
+            : `<div class="sc-row"><span><i class="bi bi-check-circle-fill" style="color:var(--green)"></i> Exact Allowance</span><span style="color:var(--green)">No adjustment</span></div>`
+          }
+          <div class="sc-row sc-total"><span>Final Salary</span><span style="color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800">₹ ${fmt(finalSalary)}</span></div>
         </div>
         <div class="sc-progress-wrap">
-          <div class="sc-progress-bar" style="width:${pct}%"></div>
+          <div class="sc-progress-bar" style="width:${pct}%;background:${progressColor}"></div>
         </div>
-        <div class="sc-footer">Expenses: <strong>₹ ${fmt(expAmt)}</strong> · ${dExp.length} entr${dExp.length===1?'y':'ies'}</div>
+        <div class="sc-footer">
+          ${netAdj > 0 ? `<span style="color:var(--red)">⚠ Over by ₹ ${fmt(extra)}</span>` : netAdj < 0 ? `<span style="color:var(--green)">✓ Saved ₹ ${fmt(saving)}</span>` : `<span style="color:var(--green)">✓ On budget</span>`}
+          &nbsp;·&nbsp; ${dExp.length} entr${dExp.length===1?'y':'ies'}
+        </div>
       </div>
     </div>`;
   }).join('');
