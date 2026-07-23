@@ -653,7 +653,8 @@ body{font-family:'Outfit',system-ui,sans-serif}
     <div class="page-head">
       <div><h2 class="page-h">Driver Expenses</h2><p class="page-sub">Track expenses per driver — auto-added to monthly salary</p></div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="openPdfFilter('driverexp')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-outline" onclick="openPdfFilter('driverexp')"><i class="bi bi-file-earmark-pdf"></i> Expenses PDF</button>
+        <button class="btn-outline" onclick="openSalaryPdfModal()" style="border-color:var(--green);color:var(--green)"><i class="bi bi-file-earmark-person"></i> Salary PDF</button>
         <button class="btn-primary" onclick="openModal('driverexp')"><i class="bi bi-plus-lg"></i> Add Expense</button>
       </div>
     </div>
@@ -917,7 +918,7 @@ body{font-family:'Outfit',system-ui,sans-serif}
             <input type="number" class="finput" id="fAllFuelCost" placeholder="0.00" min="0" step="0.01" oninput="calcAllTotal()"/>
           </div>
           <div class="fgroup">
-            <label class="flabel">Any Other Cost (₹)</label>
+            <label class="flabel">Other Cost (₹)</label>
             <input type="number" class="finput" id="fAllOtherCost" placeholder="0.00" min="0" step="0.01" oninput="calcAllTotal()"/>
           </div>
         </div>
@@ -1070,6 +1071,47 @@ body{font-family:'Outfit',system-ui,sans-serif}
       <div class="mfoot">
         <button class="btn-outline" data-bs-dismiss="modal">Cancel</button>
         <button class="btn-primary" onclick="saveDriverExp()"><i class="bi bi-check-lg"></i> Save Expense</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- SALARY PDF MODAL -->
+<div class="modal fade" id="salaryPdfModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content mpanel">
+      <div class="mhead">
+        <h5><i class="bi bi-file-earmark-person" style="color:var(--green)"></i> Download Salary PDF</h5>
+        <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="mbody">
+        <div class="fgroup">
+          <label class="flabel">Select Month <span class="req">*</span></label>
+          <input type="month" class="finput" id="salaryPdfMonth"/>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Select Driver</label>
+          <select class="fselect" id="salaryPdfDriver">
+            <option value="">All Drivers</option>
+            <option value="P Satish">P Satish</option>
+            <option value="A Sanker">A Sanker</option>
+            <option value="B Srinu">B Srinu</option>
+            <option value="D Srinu">D Srinu</option>
+            <option value="K Surinarayana">K Surinarayana</option>
+            <option value="N Santhosh">N Santhosh</option>
+            <option value="G Kanaka">G Kanaka</option>
+          </select>
+        </div>
+        <div class="salary-pdf-preview" id="salaryPdfPreview" style="display:none">
+          <div class="spy-head"><i class="bi bi-eye"></i> Preview</div>
+          <div id="salaryPdfPreviewContent"></div>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-outline" onclick="previewSalaryPdf()" style="border-color:var(--blue);color:var(--blue)"><i class="bi bi-eye"></i> Preview</button>
+        <button class="btn-primary" onclick="downloadSalaryPdf()"><i class="bi bi-download"></i> Download PDF</button>
       </div>
     </div>
   </div>
