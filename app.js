@@ -48,7 +48,7 @@ const pg   = {
 
 // ── Constants ──────────────────────────────────────────────
 const DRIVER_NAMES    = ['P Satish','A Sanker','B Srinu','D Srinu','K Surinarayana','N Santhosh','G Kanaka'];
-const BASE_SALARY     = 10000;
+const BASE_SALARY     = 11000;
 const DAILY_ALLOWANCE = 500;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
