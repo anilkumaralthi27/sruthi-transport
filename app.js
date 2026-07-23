@@ -48,7 +48,7 @@ const pg   = {
 
 // ── Constants ──────────────────────────────────────────────
 const DRIVER_NAMES    = ['P Satish','A Sanker','B Srinu','D Srinu','K Surinarayana','N Santhosh','G Kanaka'];
-const BASE_SALARY     = 10000;
+const BASE_SALARY     = 11000;
 const DAILY_ALLOWANCE = 500;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -1163,7 +1163,7 @@ function buildChart() {
   const isDark=document.documentElement.dataset.theme==='dark';
   const txtCol=isDark?'rgba(180,195,230,0.75)':'rgba(60,80,120,0.70)';
   const gridCol=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)';
-  function fmtTick(v){if(chartMetric==='amount'){if(v>=100000)return '₹'+(v/100000).toFixed(1)+'L';if(v>=1000)return '₹'+(v/1000).toFixed(0)+'K';return '₹'+v;}if(chartMetric==='weight')return v+' T';return v;}
+  function fmtTick(v){if(chartMetric==='amount'){if(v>=110000)return '₹'+(v/110000).toFixed(1)+'L';if(v>=1000)return '₹'+(v/1000).toFixed(0)+'K';return '₹'+v;}if(chartMetric==='weight')return v+' T';return v;}
   function fmtTip(v){if(chartMetric==='amount')return '₹ '+parseFloat(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});if(chartMetric==='weight')return v+' Tonnes';return v+' trips';}
   const cfg={type:'bar',data:{labels:MONTHS,datasets:[{label:metricLabels[chartMetric],data:rawValues,backgroundColor:bgColors,borderColor:borderColors,borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
     options:{responsive:true,maintainAspectRatio:false,animation:{duration:500,easing:'easeInOutQuart'},
@@ -1180,7 +1180,7 @@ function buildChart() {
     const tW=byMonth.reduce((s,m)=>s+m.weight,0);
     const tT=byMonth.reduce((s,m)=>s+m.trips,0);
     const pk=byMonth.reduce((bi,m,i,arr)=>m[chartMetric]>arr[bi][chartMetric]?i:bi,0);
-    legEl.innerHTML=`<span class="cleg-pill cleg-amber">₹ ${(tA/100000).toFixed(2)}L</span><span class="cleg-pill cleg-blue">${tW.toFixed(1)} T</span><span class="cleg-pill cleg-green">${tT} trips</span>${tT>0?`<span class="cleg-pill cleg-purple">Peak: ${MONTHS[pk]}</span>`:''}`;
+    legEl.innerHTML=`<span class="cleg-pill cleg-amber">₹ ${(tA/110000).toFixed(2)}L</span><span class="cleg-pill cleg-blue">${tW.toFixed(1)} T</span><span class="cleg-pill cleg-green">${tT} trips</span>${tT>0?`<span class="cleg-pill cleg-purple">Peak: ${MONTHS[pk]}</span>`:''}`;
   }
 }
 
