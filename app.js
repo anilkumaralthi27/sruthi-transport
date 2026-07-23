@@ -48,7 +48,7 @@ const pg   = {
 
 // ── Constants ──────────────────────────────────────────────
 const DRIVER_NAMES    = ['P Satish','A Sanker','B Srinu','D Srinu','K Surinarayana','N Santhosh','G Kanaka'];
-const BASE_SALARY     = 11000;
+const BASE_SALARY     = 10000;
 const DAILY_ALLOWANCE = 500;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -792,7 +792,7 @@ function renderAllLoads(rows, off) {
   b.innerHTML=rows.map((r,i)=>{
     const buyAmt  = r.total || (r.weight*(r.rate||0))   || 0;
     const sellAmt = r.sellTotal||(r.weight*(r.sellRate||0))||0;
-    const profit  = r.profit!==undefined ? r.profit : (sellAmt-buyAmt-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
+    const profit  = r.profit!==undefined ? r.profit : (sellAmt-buyAmt-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));  // fuelCost always subtracted
     const pCls    = profit>0?'c-green':profit<0?'c-red':'mono';
     const key     = cacheEdit('allLoads', r);
     return `<tr>
@@ -1034,7 +1034,7 @@ function exportPDF(name, customRows=null) {
       body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight+'T','₹'+fmt(r.sellRate||0),fmt(r.sellTotal||r.weight*(r.sellRate||0))]);
     } else {
       cols=['#','Date','Vehicle','Driver','From','To','Wt (T)','Buy (INR)','Sell (INR)','Profit (INR)'];
-      body=rows.map((r,i)=>{const b=r.total||(r.weight*r.rate)||0;const s=r.sellTotal||(r.weight*(r.sellRate||0))||0;const p=r.profit!==undefined?r.profit:(s-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));return [i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight,fmt(b),fmt(s),fmt(p)];});
+      body=rows.map((r,i)=>{const b=r.total||(r.weight*r.rate)||0;const s=r.sellTotal||(r.weight*(r.sellRate||0))||0;const p=r.profit!==undefined?r.profit:(s-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));  /* fuelCost deducted */return [i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight,fmt(b),fmt(s),fmt(p)];});
     }
   }
   else if(name==='drivers'){cols=['#','Date','Driver Name','Status'];body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.driverName,r.status]);}
@@ -1163,7 +1163,7 @@ function buildChart() {
   const isDark=document.documentElement.dataset.theme==='dark';
   const txtCol=isDark?'rgba(180,195,230,0.75)':'rgba(60,80,120,0.70)';
   const gridCol=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)';
-  function fmtTick(v){if(chartMetric==='amount'){if(v>=110000)return '₹'+(v/110000).toFixed(1)+'L';if(v>=1000)return '₹'+(v/1000).toFixed(0)+'K';return '₹'+v;}if(chartMetric==='weight')return v+' T';return v;}
+  function fmtTick(v){if(chartMetric==='amount'){if(v>=100000)return '₹'+(v/100000).toFixed(1)+'L';if(v>=1000)return '₹'+(v/1000).toFixed(0)+'K';return '₹'+v;}if(chartMetric==='weight')return v+' T';return v;}
   function fmtTip(v){if(chartMetric==='amount')return '₹ '+parseFloat(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});if(chartMetric==='weight')return v+' Tonnes';return v+' trips';}
   const cfg={type:'bar',data:{labels:MONTHS,datasets:[{label:metricLabels[chartMetric],data:rawValues,backgroundColor:bgColors,borderColor:borderColors,borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
     options:{responsive:true,maintainAspectRatio:false,animation:{duration:500,easing:'easeInOutQuart'},
@@ -1180,7 +1180,7 @@ function buildChart() {
     const tW=byMonth.reduce((s,m)=>s+m.weight,0);
     const tT=byMonth.reduce((s,m)=>s+m.trips,0);
     const pk=byMonth.reduce((bi,m,i,arr)=>m[chartMetric]>arr[bi][chartMetric]?i:bi,0);
-    legEl.innerHTML=`<span class="cleg-pill cleg-amber">₹ ${(tA/110000).toFixed(2)}L</span><span class="cleg-pill cleg-blue">${tW.toFixed(1)} T</span><span class="cleg-pill cleg-green">${tT} trips</span>${tT>0?`<span class="cleg-pill cleg-purple">Peak: ${MONTHS[pk]}</span>`:''}`;
+    legEl.innerHTML=`<span class="cleg-pill cleg-amber">₹ ${(tA/100000).toFixed(2)}L</span><span class="cleg-pill cleg-blue">${tW.toFixed(1)} T</span><span class="cleg-pill cleg-green">${tT} trips</span>${tT>0?`<span class="cleg-pill cleg-purple">Peak: ${MONTHS[pk]}</span>`:''}`;
   }
 }
 
@@ -1204,4 +1204,206 @@ function toast(msg,type='ok'){
   const color={ok:'var(--green)',warn:'var(--amber)',err:'var(--red)'}[type]||'var(--green)';
   el.style.borderLeft=`4px solid ${color}`; body.innerHTML=msg;
   bootstrap.Toast.getOrCreateInstance(el,{delay:3200}).show();
+}
+
+
+// ══════════════════════════════════════════════════════════
+//  DRIVER SALARY PDF
+// ══════════════════════════════════════════════════════════
+
+function openSalaryPdfModal() {
+  // Default to current month
+  const nowMonth = new Date().toISOString().slice(0,7);
+  const monthEl  = document.getElementById('salaryPdfMonth');
+  if (monthEl) monthEl.value = nowMonth;
+  document.getElementById('salaryPdfDriver').value = '';
+  document.getElementById('salaryPdfPreview').style.display = 'none';
+  document.getElementById('salaryPdfPreviewContent').innerHTML = '';
+  new bootstrap.Modal(document.getElementById('salaryPdfModal')).show();
+}
+
+// ── Build salary data for a driver + month ──────────────────
+function buildDriverSalaryData(driverName, month) {
+  const monthExp = data.driverexp.filter(r =>
+    r.driverName === driverName && (r.date||'').startsWith(month)
+  );
+
+  const expAmt       = monthExp.reduce((s,r) => s+(+r.total||0), 0);
+  const beta         = monthExp.reduce((s,r) => s+(+r.beta||0), 0);
+  const meals        = monthExp.reduce((s,r) => s+(+r.meals||0), 0);
+  const halfLoading  = monthExp.reduce((s,r) => s+(+r.halfLoading||0), 0);
+  const other        = monthExp.reduce((s,r) => s+(+r.other||0), 0);
+  const totalAllowance = monthExp.reduce((s,r) => s+(r.dailyAllowance||DAILY_ALLOWANCE), 0);
+  const netAdj       = monthExp.reduce((s,r) => {
+    if (r.netAdjustment !== undefined) return s + r.netAdjustment;
+    return s + ((r.total||0) - (r.dailyAllowance||DAILY_ALLOWANCE));
+  }, 0);
+  const finalSalary  = BASE_SALARY + netAdj;
+
+  return { driverName, month, entries: monthExp, expAmt, beta, meals, halfLoading, other,
+           totalAllowance, netAdj, finalSalary, entryCount: monthExp.length };
+}
+
+// ── Preview ─────────────────────────────────────────────────
+function previewSalaryPdf() {
+  const month      = document.getElementById('salaryPdfMonth').value;
+  const driverSel  = document.getElementById('salaryPdfDriver').value;
+  if (!month) { toast('⚠️ Please select a month','warn'); return; }
+
+  const drivers = driverSel ? [driverSel] : DRIVER_NAMES;
+  const [y,m]   = month.split('-');
+  const label   = new Date(parseInt(y),parseInt(m)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+
+  const previewEl = document.getElementById('salaryPdfPreviewContent');
+  const wrapEl    = document.getElementById('salaryPdfPreview');
+
+  previewEl.innerHTML = drivers.map(name => {
+    const d = buildDriverSalaryData(name, month);
+    const sign = d.netAdj >= 0 ? '+' : '−';
+    const adjColor = d.netAdj > 0 ? 'var(--red)' : d.netAdj < 0 ? 'var(--green)' : 'var(--muted)';
+    return `
+    <div class="spy-card">
+      <div class="spy-name"><i class="bi bi-person-circle"></i> ${name}</div>
+      <div class="spy-row"><span>Base Salary</span><span class="spy-green">₹ ${fmt(BASE_SALARY)}</span></div>
+      <div class="spy-row"><span>Allowance Given</span><span style="color:var(--blue)">₹ ${fmt(d.totalAllowance)}</span></div>
+      <div class="spy-row"><span>Actual Spent</span><span style="color:var(--muted)">₹ ${fmt(d.expAmt)}</span></div>
+      <div class="spy-row"><span>Net Adjustment</span><span style="color:${adjColor}">${sign} ₹ ${fmt(Math.abs(d.netAdj))}</span></div>
+      <div class="spy-row spy-total"><span>Final Salary</span><span>₹ ${fmt(d.finalSalary)}</span></div>
+    </div>`;
+  }).join('');
+
+  wrapEl.style.display = 'block';
+}
+
+// ── Download salary PDF ─────────────────────────────────────
+function downloadSalaryPdf() {
+  const month     = document.getElementById('salaryPdfMonth').value;
+  const driverSel = document.getElementById('salaryPdfDriver').value;
+  if (!month) { toast('⚠️ Please select a month','warn'); return; }
+
+  const drivers   = driverSel ? [driverSel] : DRIVER_NAMES;
+  const [y,m]     = month.split('-');
+  const monthLabel= new Date(parseInt(y),parseInt(m)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+  const now       = new Date();
+  const dStr      = now.toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+
+  const {jsPDF}   = window.jspdf;
+  const doc       = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+  // ── Header bar ──
+  doc.setFillColor(11,20,55); doc.rect(0,0,210,34,'F');
+  doc.setTextColor(245,158,11); doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text('SRUTHI TRANSPORT', 14, 13);
+  doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Driver Salary Report — ' + monthLabel, 14, 20);
+  doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text(driverSel ? `Salary: ${driverSel}` : 'All Drivers Salary Summary', 14, 28);
+  doc.setTextColor(180,190,210); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Generated: ' + dStr, 196, 28, {align:'right'});
+
+  let yPos = 40;
+
+  // ── Summary totals box ──
+  const allData  = drivers.map(n => buildDriverSalaryData(n, month));
+  const grandTot = allData.reduce((s,d) => s + d.finalSalary, 0);
+  doc.setFillColor(240,242,250); doc.roundedRect(14, yPos, 182, 14, 3, 3, 'F');
+  doc.setTextColor(11,20,55); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text(`Drivers: ${drivers.length}`, 20, yPos+9);
+  doc.text(`Total Payout: INR ${fmt(grandTot)}`, 110, yPos+9);
+  yPos += 20;
+
+  // ── Per-driver salary table ──
+  const tableHead = [['#','Driver Name','Base Salary','Allowance','Spent','Adjustment','Final Salary']];
+  const tableBody = allData.map((d,i) => {
+    const sign = d.netAdj >= 0 ? '+' : '−';
+    return [
+      i+1,
+      d.driverName,
+      '₹ '+fmt(BASE_SALARY),
+      '₹ '+fmt(d.totalAllowance),
+      '₹ '+fmt(d.expAmt),
+      sign+' ₹ '+fmt(Math.abs(d.netAdj)),
+      '₹ '+fmt(d.finalSalary)
+    ];
+  });
+
+  doc.autoTable({
+    head: tableHead,
+    body: tableBody,
+    startY: yPos,
+    margin: {left:14, right:14},
+    headStyles: {fillColor:[11,20,55], textColor:[245,158,11], fontStyle:'bold', fontSize:9},
+    bodyStyles: {fontSize:9, textColor:[20,30,60]},
+    alternateRowStyles: {fillColor:[247,249,253]},
+    styles: {cellPadding:4, lineColor:[215,220,235], lineWidth:.2},
+    columnStyles: {
+      0: {halign:'center', cellWidth:10},
+      6: {fontStyle:'bold', textColor:[11,100,55]}
+    },
+    didParseCell(data) {
+      // Color adjustment column: red if positive (extra cost), green if negative (saving)
+      if (data.column.index === 5 && data.section === 'body') {
+        const val = allData[data.row.index];
+        if (val) data.cell.styles.textColor = val.netAdj > 0 ? [180,0,0] : val.netAdj < 0 ? [0,130,80] : [100,100,100];
+      }
+      // Color final salary amber
+      if (data.column.index === 6 && data.section === 'body') {
+        data.cell.styles.textColor = [180,100,0];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    }
+  });
+
+  yPos = doc.lastAutoTable.finalY + 12;
+
+  // ── Expense breakdown per driver (if single driver or space allows) ──
+  if (driverSel && allData[0]?.entries?.length > 0) {
+    const d = allData[0];
+    doc.setTextColor(11,20,55); doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text('Expense Breakdown — ' + d.driverName, 14, yPos);
+    yPos += 4;
+
+    doc.autoTable({
+      head: [['#','Date','Beta','Meals','Half Load','Other','Comment','Total','Allowance','Adj']],
+      body: d.entries.map((r,i) => {
+        const adj = (r.netAdjustment !== undefined ? r.netAdjustment : (r.total||0)-(r.dailyAllowance||DAILY_ALLOWANCE));
+        return [
+          i+1, fmtDate(r.date),
+          r.beta>0?'₹'+fmt(r.beta):'—',
+          r.meals>0?'₹'+fmt(r.meals):'—',
+          r.halfLoading>0?'₹'+fmt(r.halfLoading):'—',
+          r.other>0?'₹'+fmt(r.other):'—',
+          r.comment||'—',
+          '₹'+fmt(r.total||0),
+          '₹'+fmt(r.dailyAllowance||DAILY_ALLOWANCE),
+          (adj>=0?'+':'−')+'₹'+fmt(Math.abs(adj))
+        ];
+      }),
+      startY: yPos,
+      margin: {left:14, right:14},
+      headStyles: {fillColor:[30,50,90], textColor:[245,158,11], fontStyle:'bold', fontSize:7.5},
+      bodyStyles: {fontSize:7.5, textColor:[20,30,60]},
+      alternateRowStyles: {fillColor:[247,249,253]},
+      styles: {cellPadding:3, lineColor:[215,220,235], lineWidth:.2},
+      columnStyles: {0:{halign:'center',cellWidth:8}}
+    });
+    yPos = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ── Footer ──
+  const pc = doc.internal.getNumberOfPages();
+  for (let i=1;i<=pc;i++) {
+    doc.setPage(i);
+    doc.setFillColor(11,20,55); doc.rect(0,287,210,10,'F');
+    doc.setTextColor(170,180,205); doc.setFontSize(7);
+    doc.text('Sruthi Transport — Driver Salary Report', 14, 293);
+    doc.text(`Page ${i} of ${pc}`, 196, 293, {align:'right'});
+  }
+
+  const fname = driverSel
+    ? `sruthi-salary-${driverSel.replace(/ /g,'-').toLowerCase()}-${month}.pdf`
+    : `sruthi-salary-all-drivers-${month}.pdf`;
+  doc.save(fname);
+  bootstrap.Modal.getInstance(document.getElementById('salaryPdfModal'))?.hide();
+  toast('📄 Salary PDF downloaded!','ok');
 }
