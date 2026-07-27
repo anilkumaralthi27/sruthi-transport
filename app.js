@@ -527,6 +527,40 @@ async function saveAllLoad() {
     createdAt:new Date().toISOString()
   });
   hideModal('allLoadsModal');
+
+  // ── Auto-add to Loads to Saburi when destination is Saburi ──
+  const dest = toPlace.toLowerCase();
+  if (dest.includes('saburi') || dest.includes('sabari')) {
+    const saburiRec = {
+      date, vehicle, weight, rate, sellRate,
+      total: buyTotal, sellTotal, profit,
+      autoAdded: true,
+      createdAt: new Date().toISOString()
+    };
+    try {
+      if (useLS) {
+        const exists = data.loads.some(r =>
+          r.date===date && r.vehicle===vehicle && Math.abs((r.weight||0)-weight)<0.01
+        );
+        if (!exists) {
+          data.loads.unshift({ id:genId(), ...saburiRec });
+          saveLS('loads');
+          render('loads');
+          toast('✅ Saved & auto-added to Loads to Saburi', 'ok');
+        }
+      } else {
+        const snap = await db.collection('loads')
+          .where('date','==',date).where('vehicle','==',vehicle).get();
+        const exists = snap.docs.some(d => Math.abs((d.data().weight||0)-weight)<0.01);
+        if (!exists) {
+          const ref = await db.collection('loads').add(saburiRec);
+          data.loads.unshift({ id:ref.id, ...saburiRec });
+          render('loads');
+          toast('✅ Saved & auto-added to Loads to Saburi', 'ok');
+        }
+      }
+    } catch(e) { console.warn('Auto-add to Saburi failed:', e); }
+  }
 }
 
 async function saveDriver() {
@@ -986,83 +1020,158 @@ function downloadFilteredPDF() {
 }
 
 function exportPDF(name, customRows=null) {
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  const rows=customRows||filtered(name);
-  const now=new Date();
-  const dStr=now.toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+  const {jsPDF} = window.jspdf;
+  // All Loads uses landscape for more column space; others portrait
+  const isLandscape = name === 'allLoads';
+  const doc = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit:'mm', format:'a4' });
+  const PW  = isLandscape ? 297 : 210; // page width
+  const PH  = isLandscape ? 210 : 297; // page height
+  const rows = customRows || filtered(name);
+  const now  = new Date();
+  const dStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
 
-  doc.setFillColor(11,20,55); doc.rect(0,0,210,34,'F');
+  // ── Header bar ──
+  doc.setFillColor(11,20,55); doc.rect(0,0,PW,34,'F');
   doc.setTextColor(245,158,11); doc.setFontSize(20); doc.setFont('helvetica','bold');
-  doc.text('SRUTHI TRANSPORT',14,13);
+  doc.text('SRUTHI TRANSPORT', 14, 13);
   doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text('Management System',14,20);
-  const titles={credit:'Credit Amount Report',pending:'Spending Amount Report',loads:'Loads to Saburi Report',allLoads:'All Loads Report',drivers:'Driver Attendance Report',driverexp:'Driver Expenses Report'};
+  doc.text('Management System', 14, 20);
+  const titles = {credit:'Credit Amount Report',pending:'Spending Amount Report',loads:'Loads to Saburi Report',allLoads:'All Loads Report',drivers:'Driver Attendance Report',driverexp:'Driver Expenses Report'};
   doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text(titles[name]||name, 14,28);
+  doc.text(titles[name]||name, 14, 28);
   doc.setTextColor(180,190,210); doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text(`Generated: ${dStr}`,196,28,{align:'right'});
+  doc.text(`Generated: ${dStr}`, PW-14, 28, {align:'right'});
 
-  doc.setFillColor(240,242,250); doc.roundedRect(14,38,182,16,3,3,'F');
+  // ── Summary bar ──
+  doc.setFillColor(240,242,250); doc.roundedRect(14, 38, PW-28, 16, 3, 3, 'F');
   doc.setTextColor(11,20,55); doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text(`Total Records: ${rows.length}`,20,47);
-  if(name==='credit')  doc.text(`Grand Total: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`,110,47);
-  if(name==='pending') doc.text(`Total Spending: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`,110,47);
-  if(name==='loads')   { const tw=rows.reduce((s,r)=>s+(+r.weight||0),0); const ta=rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0); doc.text(`Total Weight: ${tw.toFixed(2)} T`,70,47); doc.text(`Total Amt: INR ${fmt(ta)}`,130,47); }
-  if(name==='allLoads'){
-    const view=allLoadsPdfView||'both';
+
+  if(name==='credit') {
+    doc.text(`Total Records: ${rows.length}`, 20, 47);
+    doc.text(`Grand Total: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`, 110, 47);
+  } else if(name==='pending') {
+    doc.text(`Total Records: ${rows.length}`, 20, 47);
+    doc.text(`Total Spending: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`, 110, 47);
+  } else if(name==='loads') {
     const tw=rows.reduce((s,r)=>s+(+r.weight||0),0);
-    const tB=rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
-    const tS=rows.reduce((s,r)=>s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0),0);
+    const ta=rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
+    doc.text(`Total Records: ${rows.length}`, 20, 47);
+    doc.text(`Total Weight: ${tw.toFixed(2)} T`, 80, 47);
+    doc.text(`Total Amount: INR ${fmt(ta)}`, 145, 47);
+  } else if(name==='allLoads') {
+    const view = allLoadsPdfView||'both';
+    const tw = rows.reduce((s,r)=>s+(+r.weight||0),0);
+    const tB = rows.reduce((s,r)=>s+(+(r.total||r.weight*(r.rate||0))||0),0);
+    const tS = rows.reduce((s,r)=>s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0),0);
+    const tP = tS - tB;
+    doc.text(`Trips: ${rows.length}`, 20, 47);
+    doc.text(`Total Weight: ${tw.toFixed(2)} T`, 60, 47);
     if(view==='buying') {
-      doc.text(`Total Weight: ${tw.toFixed(2)} T`, 20,47);
-      doc.text(`Trips: ${rows.length}`, 90,47);
-      doc.text(`Total Buying: INR ${fmt(tB)}`, 120,47);
+      doc.text(`Total Buying: INR ${fmt(tB)}`, 140, 47);
     } else if(view==='selling') {
-      doc.text(`Total Weight: ${tw.toFixed(2)} T`, 20,47);
-      doc.text(`Trips: ${rows.length}`, 90,47);
-      doc.text(`Total Selling: INR ${fmt(tS)}`, 120,47);
+      doc.text(`Total Selling: INR ${fmt(tS)}`, 140, 47);
     } else {
-      doc.text(`Total Weight: ${tw.toFixed(2)} T`, 20,47);
-      doc.text(`Buy: INR ${fmt(tB)}`, 80,47);
-      doc.text(`Sell: INR ${fmt(tS)}`, 130,47);
-      doc.text(`Profit: INR ${fmt(tS-tB)}`, 170,47);
+      doc.text(`Buy: INR ${fmt(tB)}`, 120, 47);
+      doc.text(`Sell: INR ${fmt(tS)}`, 185, 47);
+      doc.text(`Profit: INR ${fmt(tP)}`, 235, 47);
     }
+  } else if(name==='drivers') {
+    doc.text(`Total Records: ${rows.length}`, 20, 47);
+    doc.text(`Present: ${rows.filter(r=>r.status==='Present').length}`, 100, 47);
+    doc.text(`Absent: ${rows.filter(r=>r.status==='Absent').length}`, 150, 47);
+  } else {
+    doc.text(`Total Records: ${rows.length}`, 20, 47);
   }
-  if(name==='drivers'){doc.text(`Present: ${rows.filter(r=>r.status==='Present').length}`,80,47);doc.text(`Absent: ${rows.filter(r=>r.status==='Absent').length}`,130,47);}
 
-  let cols,body;
-  if(name==='credit')  {cols=['#','Company','Date','Amount (INR)','To Whom'];body=rows.map((r,i)=>[i+1,r.company,fmtDate(r.date),fmt(r.amount),r.account]);}
-  else if(name==='pending'){cols=['#','Name','Amount (INR)','Date','Reason'];body=rows.map((r,i)=>[i+1,r.name,fmt(r.amount),fmtDate(r.date),r.reason]);}
-  else if(name==='loads'){cols=['#','Date','Vehicle','Weight (T)','Rate/Ton','Total (INR)'];body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.weight,fmt(r.rate),fmt(r.total||r.weight*r.rate)]);}
-  else if(name==='allLoads'){
-    const view=allLoadsPdfView||'both';
-    if(view==='buying'){
-      cols=['#','Date','Vehicle','Driver','From','To','Weight (T)','Buy Rate','Buying Total'];
-      body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight+'T','₹'+fmt(r.rate||0),fmt(r.total||r.weight*r.rate)]);
-    } else if(view==='selling'){
-      cols=['#','Date','Vehicle','Driver','From','To','Weight (T)','Sell Rate','Selling Total'];
-      body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight+'T','₹'+fmt(r.sellRate||0),fmt(r.sellTotal||r.weight*(r.sellRate||0))]);
+  // ── Table data ──
+  let cols, body, colStyles = {};
+  const startY = 60;
+  const margin = { left:14, right:14 };
+
+  if(name==='credit') {
+    cols = ['#','Company','Date','Amount (INR)','To Whom / Account'];
+    body = rows.map((r,i)=>[i+1, r.company, fmtDate(r.date), fmt(r.amount), r.account]);
+    colStyles = {0:{halign:'center',cellWidth:10}, 3:{halign:'right'}};
+  } else if(name==='pending') {
+    cols = ['#','Name','Amount (INR)','Date','Reason'];
+    body = rows.map((r,i)=>[i+1, r.name, fmt(r.amount), fmtDate(r.date), r.reason]);
+    colStyles = {0:{halign:'center',cellWidth:10}, 2:{halign:'right'}};
+  } else if(name==='loads') {
+    cols = ['#','Date','Vehicle No.','Weight (T)','Rate / Ton','Total (INR)'];
+    body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.weight+' T', '₹ '+fmt(r.rate), fmt(r.total||r.weight*r.rate)]);
+    colStyles = {0:{halign:'center',cellWidth:10}, 3:{halign:'right'}, 4:{halign:'right'}, 5:{halign:'right',fontStyle:'bold'}};
+  } else if(name==='allLoads') {
+    const view = allLoadsPdfView||'both';
+    if(view==='buying') {
+      cols = ['#','Date','Vehicle No.','Driver','From Place','To Place','Wt (T)','Buy Rate/T','Buying Total (INR)'];
+      body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+' T', '₹ '+fmt(r.rate||0), fmt(r.total||r.weight*(r.rate||0))]);
+      colStyles = {0:{halign:'center',cellWidth:8}, 1:{cellWidth:24}, 2:{cellWidth:26}, 3:{cellWidth:24}, 4:{cellWidth:28}, 5:{cellWidth:22}, 6:{halign:'right',cellWidth:16}, 7:{halign:'right',cellWidth:22}, 8:{halign:'right',fontStyle:'bold',cellWidth:30}};
+    } else if(view==='selling') {
+      cols = ['#','Date','Vehicle No.','Driver','From Place','To Place','Wt (T)','Sell Rate/T','Selling Total (INR)'];
+      body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+' T', '₹ '+fmt(r.sellRate||0), fmt(r.sellTotal||r.weight*(r.sellRate||0))]);
+      colStyles = {0:{halign:'center',cellWidth:8}, 1:{cellWidth:24}, 2:{cellWidth:26}, 3:{cellWidth:24}, 4:{cellWidth:28}, 5:{cellWidth:22}, 6:{halign:'right',cellWidth:16}, 7:{halign:'right',cellWidth:22}, 8:{halign:'right',fontStyle:'bold',cellWidth:30}};
     } else {
-      cols=['#','Date','Vehicle','Driver','From','To','Wt (T)','Buy (INR)','Sell (INR)','Profit (INR)'];
-      body=rows.map((r,i)=>{const b=r.total||(r.weight*r.rate)||0;const s=r.sellTotal||(r.weight*(r.sellRate||0))||0;const p=r.profit!==undefined?r.profit:(s-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));  /* fuelCost deducted */return [i+1,fmtDate(r.date),r.vehicle,r.driverName,r.fromPlace,r.toPlace,r.weight,fmt(b),fmt(s),fmt(p)];});
+      cols = ['#','Date','Vehicle No.','Driver','From','To','Wt (T)','Buy (INR)','Sell (INR)','Profit (INR)'];
+      body = rows.map((r,i)=>{
+        const b = r.total||(r.weight*(r.rate||0))||0;
+        const s = r.sellTotal||(r.weight*(r.sellRate||0))||0;
+        const p = r.profit!==undefined ? r.profit : (s-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
+        return [i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+' T', fmt(b), fmt(s), fmt(p)];
+      });
+      colStyles = {0:{halign:'center',cellWidth:8}, 1:{cellWidth:22}, 2:{cellWidth:24}, 3:{cellWidth:22}, 4:{cellWidth:26}, 5:{cellWidth:20}, 6:{halign:'right',cellWidth:16}, 7:{halign:'right',cellWidth:28}, 8:{halign:'right',cellWidth:28}, 9:{halign:'right',fontStyle:'bold',cellWidth:28}};
     }
+  } else if(name==='drivers') {
+    cols = ['#','Date','Driver Name','Status'];
+    body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.driverName, r.status]);
+    colStyles = {0:{halign:'center',cellWidth:10}};
+  } else if(name==='driverexp') {
+    cols = ['#','Date','Driver','Beta','Meals','Half Load','Other','Comment','Total Spent'];
+    body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.driverName, fmt(r.beta||0), fmt(r.meals||0), fmt(r.halfLoading||0), fmt(r.other||0), r.comment||'—', fmt(r.total||0)]);
+    colStyles = {0:{halign:'center',cellWidth:10}, 8:{halign:'right',fontStyle:'bold'}};
   }
-  else if(name==='drivers'){cols=['#','Date','Driver Name','Status'];body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.driverName,r.status]);}
-  else if(name==='driverexp'){cols=['#','Date','Driver','Beta','Meals','Half Load','Other','Comment','Total'];body=rows.map((r,i)=>[i+1,fmtDate(r.date),r.driverName,fmt(r.beta||0),fmt(r.meals||0),fmt(r.halfLoading||0),fmt(r.other||0),r.comment||'—',fmt(r.total||0)]);}
 
-  doc.autoTable({head:[cols],body,startY:58,margin:{left:14,right:14},
-    headStyles:{fillColor:[11,20,55],textColor:[245,158,11],fontStyle:'bold',fontSize:8.5},
-    bodyStyles:{fontSize:8.5,textColor:[20,30,60]},
-    alternateRowStyles:{fillColor:[247,249,253]},
-    styles:{cellPadding:3.5,lineColor:[215,220,235],lineWidth:.2},
-    columnStyles:{0:{halign:'center',cellWidth:10}}
+  doc.autoTable({
+    head: [cols],
+    body,
+    startY,
+    margin,
+    headStyles: {
+      fillColor:[11,20,55], textColor:[245,158,11],
+      fontStyle:'bold', fontSize:9, halign:'center'
+    },
+    bodyStyles: { fontSize:9, textColor:[15,25,55] },
+    alternateRowStyles: { fillColor:[245,247,252] },
+    styles: {
+      cellPadding:4,
+      lineColor:[210,218,235],
+      lineWidth:.25,
+      overflow:'linebreak',
+      valign:'middle'
+    },
+    columnStyles: colStyles,
+    didParseCell(data) {
+      // Highlight negative profit red, positive profit green
+      if(name==='allLoads' && (allLoadsPdfView||'both')==='both' && data.column.index===9 && data.section==='body') {
+        const val = parseFloat(String(data.cell.raw).replace(/,/g,''));
+        if(!isNaN(val)) data.cell.styles.textColor = val < 0 ? [180,0,0] : val > 0 ? [0,130,60] : [80,80,80];
+      }
+    }
   });
-  const pc=doc.internal.getNumberOfPages();
-  for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFillColor(11,20,55);doc.rect(0,287,210,10,'F');doc.setTextColor(170,180,205);doc.setFontSize(7);doc.text('Sruthi Transport Management System',14,293);doc.text(`Page ${i} of ${pc}`,196,293,{align:'right'});}
-  const fname={credit:'credit',pending:'spending',loads:'loads-saburi',allLoads:'all-loads',drivers:'driver-attendance',driverexp:'driver-expenses'};
+
+  // ── Footer ──
+  const pc = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pc;i++){
+    doc.setPage(i);
+    doc.setFillColor(11,20,55);
+    doc.rect(0, PH-10, PW, 10, 'F');
+    doc.setTextColor(170,180,205); doc.setFontSize(7);
+    doc.text('Sruthi Transport Management System', 14, PH-4);
+    doc.text(`Page ${i} of ${pc}`, PW-14, PH-4, {align:'right'});
+  }
+
+  const fname = {credit:'credit',pending:'spending',loads:'loads-saburi',allLoads:'all-loads',drivers:'driver-attendance',driverexp:'driver-expenses'};
   doc.save(`sruthi-${fname[name]||name}-${now.toISOString().slice(0,10)}.pdf`);
-  toast('📄 PDF exported!','ok');
+  toast('📄 PDF downloaded!','ok');
 }
 
 // ══════════════════════════════════════════════════════════
