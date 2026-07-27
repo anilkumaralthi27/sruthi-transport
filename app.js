@@ -1014,9 +1014,20 @@ function exportPDF(name, customRows=null) {
     const tw=rows.reduce((s,r)=>s+(+r.weight||0),0);
     const tB=rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
     const tS=rows.reduce((s,r)=>s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0),0);
-    if(view==='buying')  { doc.text(`Weight: ${tw.toFixed(2)} T`,60,47); doc.text(`Total Buying: INR ${fmt(tB)}`,120,47); }
-    else if(view==='selling'){ doc.text(`Weight: ${tw.toFixed(2)} T`,60,47); doc.text(`Total Selling: INR ${fmt(tS)}`,120,47); }
-    else { doc.text(`Buy: INR ${fmt(tB)}`,50,47); doc.text(`Sell: INR ${fmt(tS)}`,105,47); doc.text(`Profit: INR ${fmt(tS-tB)}`,160,47); }
+    if(view==='buying') {
+      doc.text(`Total Weight: ${tw.toFixed(2)} T`, 20,47);
+      doc.text(`Trips: ${rows.length}`, 90,47);
+      doc.text(`Total Buying: INR ${fmt(tB)}`, 120,47);
+    } else if(view==='selling') {
+      doc.text(`Total Weight: ${tw.toFixed(2)} T`, 20,47);
+      doc.text(`Trips: ${rows.length}`, 90,47);
+      doc.text(`Total Selling: INR ${fmt(tS)}`, 120,47);
+    } else {
+      doc.text(`Total Weight: ${tw.toFixed(2)} T`, 20,47);
+      doc.text(`Buy: INR ${fmt(tB)}`, 80,47);
+      doc.text(`Sell: INR ${fmt(tS)}`, 130,47);
+      doc.text(`Profit: INR ${fmt(tS-tB)}`, 170,47);
+    }
   }
   if(name==='drivers'){doc.text(`Present: ${rows.filter(r=>r.status==='Present').length}`,80,47);doc.text(`Absent: ${rows.filter(r=>r.status==='Absent').length}`,130,47);}
 
