@@ -532,8 +532,12 @@ async function saveAllLoad() {
   const dest = toPlace.toLowerCase();
   if (dest.includes('saburi') || dest.includes('sabari')) {
     const saburiRec = {
-      date, vehicle, weight, rate, sellRate,
-      total: buyTotal, sellTotal, profit,
+      date, vehicle, weight,
+      rate:    sellRate,      // Loads to Saburi shows SELLING rate as the rate per ton
+      total:   sellTotal,     // Loads to Saburi total = selling amount
+      buyRate: rate,          // keep buying rate for reference
+      buyTotal,
+      profit,
       autoAdded: true,
       createdAt: new Date().toISOString()
     };
@@ -901,8 +905,31 @@ function renderTotals(name, rows) {
     set('loadsTotalW', rows.reduce((s,r)=>s+(+r.weight||0),0).toFixed(2)+' T');
     set('loadsTotalA','₹ '+fmt(rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0)));
   } else if(name==='allLoads') {
-    set('allLoadsTotalW', rows.reduce((s,r)=>s+(+r.weight||0),0).toFixed(2)+' T');
-    set('allLoadsTotalA','₹ '+fmt(rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0)));
+    const tw   = rows.reduce((s,r)=>s+(+r.weight||0), 0);
+    const tBuy = rows.reduce((s,r)=>s+(+(r.total||r.weight*(r.rate||0))||0), 0);
+    const tSell= rows.reduce((s,r)=>s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0), 0);
+    // Sum profit per row (accounts for fuelCost, driverBeta, otherCost per entry)
+    const tProfit = rows.reduce((s,r)=>{
+      const b = r.total||(r.weight*(r.rate||0))||0;
+      const sl= r.sellTotal||(r.weight*(r.sellRate||0))||0;
+      const p = r.profit!==undefined ? r.profit : (sl-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
+      return s + p;
+    }, 0);
+
+    set('allLoadsTotalW',       tw.toFixed(2)+' T');
+    set('allLoadsTotalA',       '₹ '+fmt(tBuy));
+    set('allLoadsTotalSell',    '₹ '+fmt(tSell));
+    set('allLoadsTotalProfit',  '₹ '+fmt(tProfit));
+
+    // Colour profit pill: green if profit, red if loss
+    const pill = document.getElementById('profitPill');
+    if (pill) {
+      pill.style.background = tProfit >= 0
+        ? 'linear-gradient(135deg,#064e3b,#065f46)'   // dark green
+        : 'linear-gradient(135deg,#7f1d1d,#991b1b)';  // dark red
+    }
+    const profEl = document.getElementById('allLoadsTotalProfit');
+    if (profEl) profEl.style.color = tProfit >= 0 ? 'var(--green)' : '#fca5a5';
   } else if(name==='drivers') {
     set('countPresent', rows.filter(r=>r.status==='Present').length);
     set('countAbsent',  rows.filter(r=>r.status==='Absent').length);
@@ -1021,156 +1048,237 @@ function downloadFilteredPDF() {
 
 function exportPDF(name, customRows=null) {
   const {jsPDF} = window.jspdf;
-  // All Loads uses landscape for more column space; others portrait
-  const isLandscape = name === 'allLoads';
+  const isLandscape = (name === 'allLoads');
   const doc = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit:'mm', format:'a4' });
-  const PW  = isLandscape ? 297 : 210; // page width
-  const PH  = isLandscape ? 210 : 297; // page height
+  const PW  = isLandscape ? 297 : 210;
+  const PH  = isLandscape ? 210 : 297;
+  const ML  = 12, MR = 12; // margins
+  const CW  = PW - ML - MR; // content width
+
   const rows = customRows || filtered(name);
   const now  = new Date();
   const dStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
+  const titles = {
+    credit:'Credit Amount Report', pending:'Spending Amount Report',
+    loads:'Loads to Saburi Report', allLoads:'All Loads Report',
+    drivers:'Driver Attendance Report', driverexp:'Driver Expenses Report'
+  };
 
-  // ── Header bar ──
-  doc.setFillColor(11,20,55); doc.rect(0,0,PW,34,'F');
-  doc.setTextColor(245,158,11); doc.setFontSize(20); doc.setFont('helvetica','bold');
-  doc.text('SRUTHI TRANSPORT', 14, 13);
-  doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text('Management System', 14, 20);
-  const titles = {credit:'Credit Amount Report',pending:'Spending Amount Report',loads:'Loads to Saburi Report',allLoads:'All Loads Report',drivers:'Driver Attendance Report',driverexp:'Driver Expenses Report'};
-  doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text(titles[name]||name, 14, 28);
-  doc.setTextColor(180,190,210); doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text(`Generated: ${dStr}`, PW-14, 28, {align:'right'});
+  // ═══ HEADER ═══
+  // Deep navy full-width bar
+  doc.setFillColor(11, 20, 55);
+  doc.rect(0, 0, PW, 40, 'F');
 
-  // ── Summary bar ──
-  doc.setFillColor(240,242,250); doc.roundedRect(14, 38, PW-28, 16, 3, 3, 'F');
-  doc.setTextColor(11,20,55); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  // Amber accent left stripe
+  doc.setFillColor(245, 158, 11);
+  doc.rect(0, 0, 5, 40, 'F');
 
-  if(name==='credit') {
-    doc.text(`Total Records: ${rows.length}`, 20, 47);
-    doc.text(`Grand Total: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`, 110, 47);
-  } else if(name==='pending') {
-    doc.text(`Total Records: ${rows.length}`, 20, 47);
-    doc.text(`Total Spending: INR ${fmt(rows.reduce((s,r)=>s+(+r.amount||0),0))}`, 110, 47);
-  } else if(name==='loads') {
+  // Company name
+  doc.setTextColor(245, 158, 11);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SRUTHI TRANSPORT', ML + 6, 16);
+
+  // Subtitle
+  doc.setTextColor(180, 195, 225);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Management System · Logistics & Transport', ML + 6, 24);
+
+  // Report title (right aligned)
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text(titles[name] || name, PW - MR, 16, { align:'right' });
+
+  doc.setTextColor(180, 195, 225);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Generated: ' + dStr, PW - MR, 24, { align:'right' });
+
+  // ═══ SUMMARY STRIP ═══
+  const SY = 44; // summary strip Y
+  doc.setFillColor(235, 240, 255);
+  doc.rect(ML, SY, CW, 14, 'F');
+  doc.setDrawColor(200, 210, 235);
+  doc.setLineWidth(0.3);
+  doc.rect(ML, SY, CW, 14, 'S');
+
+  doc.setTextColor(11, 20, 55);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+
+  const sumY = SY + 5.5;
+  const sumY2 = SY + 10.5;
+
+  if (name === 'credit') {
+    const tot = rows.reduce((s,r)=>s+(+r.amount||0),0);
+    doc.text('Total Entries', ML+4, sumY); doc.text(rows.length+'', ML+4, sumY2);
+    doc.text('Grand Total', ML+50, sumY); doc.text('INR '+fmt(tot), ML+50, sumY2);
+  } else if (name === 'pending') {
+    const tot = rows.reduce((s,r)=>s+(+r.amount||0),0);
+    doc.text('Total Entries', ML+4, sumY); doc.text(rows.length+'', ML+4, sumY2);
+    doc.text('Total Spending', ML+50, sumY); doc.text('INR '+fmt(tot), ML+50, sumY2);
+  } else if (name === 'loads') {
     const tw=rows.reduce((s,r)=>s+(+r.weight||0),0);
     const ta=rows.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0);
-    doc.text(`Total Records: ${rows.length}`, 20, 47);
-    doc.text(`Total Weight: ${tw.toFixed(2)} T`, 80, 47);
-    doc.text(`Total Amount: INR ${fmt(ta)}`, 145, 47);
-  } else if(name==='allLoads') {
+    doc.text('Total Trips', ML+4, sumY); doc.text(rows.length+'', ML+4, sumY2);
+    doc.text('Total Weight', ML+40, sumY); doc.text(tw.toFixed(2)+' T', ML+40, sumY2);
+    doc.text('Total Amount', ML+90, sumY); doc.text('INR '+fmt(ta), ML+90, sumY2);
+  } else if (name === 'allLoads') {
     const view = allLoadsPdfView||'both';
     const tw = rows.reduce((s,r)=>s+(+r.weight||0),0);
     const tB = rows.reduce((s,r)=>s+(+(r.total||r.weight*(r.rate||0))||0),0);
     const tS = rows.reduce((s,r)=>s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0),0);
-    const tP = tS - tB;
-    doc.text(`Trips: ${rows.length}`, 20, 47);
-    doc.text(`Total Weight: ${tw.toFixed(2)} T`, 60, 47);
-    if(view==='buying') {
-      doc.text(`Total Buying: INR ${fmt(tB)}`, 140, 47);
-    } else if(view==='selling') {
-      doc.text(`Total Selling: INR ${fmt(tS)}`, 140, 47);
+    // Sum profit per row (correct: each row subtracts fuelCost, driverBeta, otherCost)
+    const tP = rows.reduce((s,r)=>{
+      const b  = r.total||(r.weight*(r.rate||0))||0;
+      const sl = r.sellTotal||(r.weight*(r.sellRate||0))||0;
+      const p  = r.profit!==undefined ? r.profit : (sl-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
+      return s+p;
+    },0);
+    doc.text('Total Trips', ML+4, sumY); doc.text(rows.length+'', ML+4, sumY2);
+    doc.text('Total Weight', ML+40, sumY); doc.text(tw.toFixed(2)+' T', ML+40, sumY2);
+    if (view === 'buying') {
+      doc.text('Total Buying', ML+95, sumY); doc.text('INR '+fmt(tB), ML+95, sumY2);
+    } else if (view === 'selling') {
+      doc.text('Total Selling', ML+95, sumY); doc.text('INR '+fmt(tS), ML+95, sumY2);
     } else {
-      doc.text(`Buy: INR ${fmt(tB)}`, 120, 47);
-      doc.text(`Sell: INR ${fmt(tS)}`, 185, 47);
-      doc.text(`Profit: INR ${fmt(tP)}`, 235, 47);
+      doc.text('Total Buying', ML+90, sumY);   doc.text('INR '+fmt(tB), ML+90, sumY2);
+      doc.text('Total Selling', ML+155, sumY);  doc.text('INR '+fmt(tS), ML+155, sumY2);
+      doc.text('Net Profit', ML+215, sumY);
+      doc.setTextColor(tP>=0?0:180, tP>=0?130:0, tP>=0?60:0);
+      doc.text('INR '+fmt(tP), ML+215, sumY2);
+      doc.setTextColor(11,20,55);
     }
-  } else if(name==='drivers') {
-    doc.text(`Total Records: ${rows.length}`, 20, 47);
-    doc.text(`Present: ${rows.filter(r=>r.status==='Present').length}`, 100, 47);
-    doc.text(`Absent: ${rows.filter(r=>r.status==='Absent').length}`, 150, 47);
-  } else {
-    doc.text(`Total Records: ${rows.length}`, 20, 47);
+  } else if (name === 'drivers') {
+    const present = rows.filter(r=>r.status==='Present').length;
+    const absent  = rows.filter(r=>r.status==='Absent').length;
+    const avail   = rows.filter(r=>r.status==='Available No Load').length;
+    doc.text('Total Records', ML+4, sumY); doc.text(rows.length+'', ML+4, sumY2);
+    doc.text('Present', ML+50, sumY); doc.setTextColor(0,130,60); doc.text(present+'', ML+50, sumY2);
+    doc.setTextColor(11,20,55);
+    doc.text('Absent', ML+80, sumY); doc.setTextColor(180,0,0); doc.text(absent+'', ML+80, sumY2);
+    doc.setTextColor(11,20,55);
+    doc.text('Available', ML+110, sumY); doc.text(avail+'', ML+110, sumY2);
+  } else if (name === 'driverexp') {
+    const tot = rows.reduce((s,r)=>s+(+r.total||0),0);
+    doc.text('Total Entries', ML+4, sumY); doc.text(rows.length+'', ML+4, sumY2);
+    doc.text('Total Expenses', ML+50, sumY); doc.text('INR '+fmt(tot), ML+50, sumY2);
   }
 
-  // ── Table data ──
+  // ═══ TABLE ═══
+  const tableY = SY + 20;
   let cols, body, colStyles = {};
-  const startY = 60;
-  const margin = { left:14, right:14 };
 
-  if(name==='credit') {
+  const hStyle = { fillColor:[11,20,55], textColor:[245,158,11], fontStyle:'bold', fontSize:8.5, halign:'center' };
+  const bStyle = { fontSize:8.5, textColor:[15,25,55] };
+  const altRow = { fillColor:[245,248,255] };
+  const tStyle = { cellPadding:{top:3.5,bottom:3.5,left:3,right:3}, lineColor:[210,220,240], lineWidth:0.25, overflow:'linebreak', valign:'middle' };
+
+  if (name === 'credit') {
     cols = ['#','Company','Date','Amount (INR)','To Whom / Account'];
     body = rows.map((r,i)=>[i+1, r.company, fmtDate(r.date), fmt(r.amount), r.account]);
-    colStyles = {0:{halign:'center',cellWidth:10}, 3:{halign:'right'}};
-  } else if(name==='pending') {
+    colStyles = { 0:{halign:'center',cellWidth:10}, 3:{halign:'right',fontStyle:'bold'} };
+  } else if (name === 'pending') {
     cols = ['#','Name','Amount (INR)','Date','Reason'];
     body = rows.map((r,i)=>[i+1, r.name, fmt(r.amount), fmtDate(r.date), r.reason]);
-    colStyles = {0:{halign:'center',cellWidth:10}, 2:{halign:'right'}};
-  } else if(name==='loads') {
-    cols = ['#','Date','Vehicle No.','Weight (T)','Rate / Ton','Total (INR)'];
-    body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.weight+' T', '₹ '+fmt(r.rate), fmt(r.total||r.weight*r.rate)]);
-    colStyles = {0:{halign:'center',cellWidth:10}, 3:{halign:'right'}, 4:{halign:'right'}, 5:{halign:'right',fontStyle:'bold'}};
-  } else if(name==='allLoads') {
+    colStyles = { 0:{halign:'center',cellWidth:10}, 2:{halign:'right',fontStyle:'bold'} };
+  } else if (name === 'loads') {
+    cols = ['#','Date','Vehicle No.','Weight (T)','Rate / Ton (INR)','Total Amount (INR)'];
+    body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, parseFloat(r.weight).toFixed(2)+' T', fmt(r.rate), fmt(r.total||r.weight*r.rate)]);
+    colStyles = { 0:{halign:'center',cellWidth:10}, 3:{halign:'right'}, 4:{halign:'right'}, 5:{halign:'right',fontStyle:'bold',cellWidth:38} };
+  } else if (name === 'allLoads') {
     const view = allLoadsPdfView||'both';
-    if(view==='buying') {
-      cols = ['#','Date','Vehicle No.','Driver','From Place','To Place','Wt (T)','Buy Rate/T','Buying Total (INR)'];
-      body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+' T', '₹ '+fmt(r.rate||0), fmt(r.total||r.weight*(r.rate||0))]);
-      colStyles = {0:{halign:'center',cellWidth:8}, 1:{cellWidth:24}, 2:{cellWidth:26}, 3:{cellWidth:24}, 4:{cellWidth:28}, 5:{cellWidth:22}, 6:{halign:'right',cellWidth:16}, 7:{halign:'right',cellWidth:22}, 8:{halign:'right',fontStyle:'bold',cellWidth:30}};
-    } else if(view==='selling') {
-      cols = ['#','Date','Vehicle No.','Driver','From Place','To Place','Wt (T)','Sell Rate/T','Selling Total (INR)'];
-      body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+' T', '₹ '+fmt(r.sellRate||0), fmt(r.sellTotal||r.weight*(r.sellRate||0))]);
-      colStyles = {0:{halign:'center',cellWidth:8}, 1:{cellWidth:24}, 2:{cellWidth:26}, 3:{cellWidth:24}, 4:{cellWidth:28}, 5:{cellWidth:22}, 6:{halign:'right',cellWidth:16}, 7:{halign:'right',cellWidth:22}, 8:{halign:'right',fontStyle:'bold',cellWidth:30}};
+    if (view === 'buying') {
+      cols = ['#','Date','Vehicle No.','Driver Name','From Place','To Place','Weight (T)','Buy Rate/T','Buying Total (INR)'];
+      body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, parseFloat(r.weight).toFixed(2)+' T', fmt(r.rate||0), fmt(r.total||r.weight*(r.rate||0))]);
+      colStyles = { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:22}, 2:{cellWidth:25}, 3:{cellWidth:24}, 4:{cellWidth:30}, 5:{cellWidth:22}, 6:{halign:'right',cellWidth:18}, 7:{halign:'right',cellWidth:24}, 8:{halign:'right',fontStyle:'bold',cellWidth:34} };
+    } else if (view === 'selling') {
+      cols = ['#','Date','Vehicle No.','Driver Name','From Place','To Place','Weight (T)','Sell Rate/T','Selling Total (INR)'];
+      body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, parseFloat(r.weight).toFixed(2)+' T', fmt(r.sellRate||0), fmt(r.sellTotal||r.weight*(r.sellRate||0))]);
+      colStyles = { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:22}, 2:{cellWidth:25}, 3:{cellWidth:24}, 4:{cellWidth:30}, 5:{cellWidth:22}, 6:{halign:'right',cellWidth:18}, 7:{halign:'right',cellWidth:24}, 8:{halign:'right',fontStyle:'bold',cellWidth:34} };
     } else {
-      cols = ['#','Date','Vehicle No.','Driver','From','To','Wt (T)','Buy (INR)','Sell (INR)','Profit (INR)'];
+      cols = ['#','Date','Vehicle No.','Driver Name','From','To','Wt (T)','Buying (INR)','Selling (INR)','Profit (INR)'];
+      let totalBuy=0, totalSell=0, totalProfit=0, totalWt=0;
       body = rows.map((r,i)=>{
         const b = r.total||(r.weight*(r.rate||0))||0;
         const s = r.sellTotal||(r.weight*(r.sellRate||0))||0;
         const p = r.profit!==undefined ? r.profit : (s-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
-        return [i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, r.weight+' T', fmt(b), fmt(s), fmt(p)];
+        totalBuy   += b; totalSell += s; totalProfit += p; totalWt += (+r.weight||0);
+        return [i+1, fmtDate(r.date), r.vehicle, r.driverName, r.fromPlace, r.toPlace, parseFloat(r.weight).toFixed(2)+' T', fmt(b), fmt(s), fmt(p)];
       });
-      colStyles = {0:{halign:'center',cellWidth:8}, 1:{cellWidth:22}, 2:{cellWidth:24}, 3:{cellWidth:22}, 4:{cellWidth:26}, 5:{cellWidth:20}, 6:{halign:'right',cellWidth:16}, 7:{halign:'right',cellWidth:28}, 8:{halign:'right',cellWidth:28}, 9:{halign:'right',fontStyle:'bold',cellWidth:28}};
+      // Grand total row
+      body.push(['', 'TOTAL', '', '', '', '', totalWt.toFixed(2)+' T', fmt(totalBuy), fmt(totalSell), fmt(totalProfit)]);
+      colStyles = { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:22}, 2:{cellWidth:24}, 3:{cellWidth:22}, 4:{cellWidth:24}, 5:{cellWidth:20}, 6:{halign:'right',cellWidth:16}, 7:{halign:'right',cellWidth:26}, 8:{halign:'right',cellWidth:26}, 9:{halign:'right',fontStyle:'bold',cellWidth:26} };
     }
-  } else if(name==='drivers') {
+  } else if (name === 'drivers') {
     cols = ['#','Date','Driver Name','Status'];
     body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.driverName, r.status]);
-    colStyles = {0:{halign:'center',cellWidth:10}};
-  } else if(name==='driverexp') {
+    colStyles = { 0:{halign:'center',cellWidth:10} };
+  } else if (name === 'driverexp') {
     cols = ['#','Date','Driver','Beta','Meals','Half Load','Other','Comment','Total Spent'];
-    body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.driverName, fmt(r.beta||0), fmt(r.meals||0), fmt(r.halfLoading||0), fmt(r.other||0), r.comment||'—', fmt(r.total||0)]);
-    colStyles = {0:{halign:'center',cellWidth:10}, 8:{halign:'right',fontStyle:'bold'}};
+    body = rows.map((r,i)=>[i+1, fmtDate(r.date), r.driverName, r.beta>0?fmt(r.beta):'—', r.meals>0?fmt(r.meals):'—', r.halfLoading>0?fmt(r.halfLoading):'—', r.other>0?fmt(r.other):'—', r.comment||'—', fmt(r.total||0)]);
+    colStyles = { 0:{halign:'center',cellWidth:10}, 8:{halign:'right',fontStyle:'bold'} };
   }
 
   doc.autoTable({
     head: [cols],
     body,
-    startY,
-    margin,
-    headStyles: {
-      fillColor:[11,20,55], textColor:[245,158,11],
-      fontStyle:'bold', fontSize:9, halign:'center'
-    },
-    bodyStyles: { fontSize:9, textColor:[15,25,55] },
-    alternateRowStyles: { fillColor:[245,247,252] },
-    styles: {
-      cellPadding:4,
-      lineColor:[210,218,235],
-      lineWidth:.25,
-      overflow:'linebreak',
-      valign:'middle'
-    },
+    startY: tableY,
+    margin: { left:ML, right:MR },
+    headStyles: hStyle,
+    bodyStyles: bStyle,
+    alternateRowStyles: altRow,
+    styles: tStyle,
     columnStyles: colStyles,
     didParseCell(data) {
-      // Highlight negative profit red, positive profit green
-      if(name==='allLoads' && (allLoadsPdfView||'both')==='both' && data.column.index===9 && data.section==='body') {
-        const val = parseFloat(String(data.cell.raw).replace(/,/g,''));
-        if(!isNaN(val)) data.cell.styles.textColor = val < 0 ? [180,0,0] : val > 0 ? [0,130,60] : [80,80,80];
+      if (name==='allLoads' && (allLoadsPdfView||'both')==='both' && data.section==='body') {
+        const isLastRow = data.row.index === body.length - 1;
+        // Style grand total row
+        if (isLastRow) {
+          data.cell.styles.fillColor    = [11, 20, 55];
+          data.cell.styles.textColor    = [245, 158, 11];
+          data.cell.styles.fontStyle    = 'bold';
+          data.cell.styles.fontSize     = 9.5;
+        }
+        // Colour profit column green/red
+        if (data.column.index === 9 && !isLastRow) {
+          const raw = String(data.cell.raw || '').replace(/[,₹ ]/g,'');
+          const val = parseFloat(raw);
+          if (!isNaN(val)) {
+            data.cell.styles.textColor = val < 0 ? [180,0,0] : val > 0 ? [0,130,60] : [100,100,100];
+          }
+        }
+        // Grand total profit colour
+        if (data.column.index === 9 && isLastRow) {
+          const raw = String(data.cell.raw || '').replace(/[,₹ ]/g,'');
+          const val = parseFloat(raw);
+          data.cell.styles.textColor = val < 0 ? [255,120,120] : [100,255,170];
+        }
       }
     }
   });
 
-  // ── Footer ──
+  // ═══ FOOTER ═══
   const pc = doc.internal.getNumberOfPages();
-  for(let i=1;i<=pc;i++){
+  for (let i=1; i<=pc; i++) {
     doc.setPage(i);
-    doc.setFillColor(11,20,55);
-    doc.rect(0, PH-10, PW, 10, 'F');
-    doc.setTextColor(170,180,205); doc.setFontSize(7);
-    doc.text('Sruthi Transport Management System', 14, PH-4);
-    doc.text(`Page ${i} of ${pc}`, PW-14, PH-4, {align:'right'});
+    // Bottom bar
+    doc.setFillColor(11, 20, 55);
+    doc.rect(0, PH-12, PW, 12, 'F');
+    doc.setFillColor(245, 158, 11);
+    doc.rect(0, PH-12, 5, 12, 'F');
+    doc.setTextColor(180, 195, 225);
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Sruthi Transport Management System', ML+6, PH-5.5);
+    doc.setTextColor(245, 158, 11);
+    doc.text('Page ' + i + ' of ' + pc, PW-MR, PH-5.5, { align:'right' });
   }
 
   const fname = {credit:'credit',pending:'spending',loads:'loads-saburi',allLoads:'all-loads',drivers:'driver-attendance',driverexp:'driver-expenses'};
-  doc.save(`sruthi-${fname[name]||name}-${now.toISOString().slice(0,10)}.pdf`);
+  doc.save('sruthi-' + (fname[name]||name) + '-' + now.toISOString().slice(0,10) + '.pdf');
   toast('📄 PDF downloaded!','ok');
 }
 
