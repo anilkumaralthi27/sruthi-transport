@@ -572,18 +572,24 @@ body{font-family:'Outfit',system-ui,sans-serif}
     </div>
     <div class="glass-card mb-4">
       <div class="row g-3 align-items-end">
-        <div class="col-md-5">
+        <div class="col-md-12 col-lg-3">
           <label class="flabel">Search</label>
           <div class="search-wrap">
             <i class="bi bi-search"></i>
             <input type="text" class="finput" id="allLoadsSearch" placeholder="Vehicle, driver, place…" oninput="filterAndRender('allLoads')"/>
           </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-6 col-md-3">
           <div class="total-pill tp-purple"><span class="tp-lbl">Total Weight</span><span class="tp-val" id="allLoadsTotalW">0 T</span></div>
         </div>
-        <div class="col-md-3">
-          <div class="total-pill"><span class="tp-lbl">Total Amount</span><span class="tp-val" id="allLoadsTotalA">₹ 0.00</span></div>
+        <div class="col-6 col-md-3">
+          <div class="total-pill tp-blue"><span class="tp-lbl">Total Buying</span><span class="tp-val" id="allLoadsTotalA">₹ 0.00</span></div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="total-pill" style="background:linear-gradient(135deg,#064e3b,#065f46)"><span class="tp-lbl">Total Selling</span><span class="tp-val" id="allLoadsTotalSell">₹ 0.00</span></div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="total-pill" id="profitPill" style="background:linear-gradient(135deg,#1a2d6b,#0b1437)"><span class="tp-lbl">Total Profit</span><span class="tp-val" id="allLoadsTotalProfit">₹ 0.00</span></div>
         </div>
       </div>
     </div>
