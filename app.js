@@ -2,7 +2,7 @@
 /* ═══════════════════════════════════════════════════════════
    SRUTHI TRANSPORT — app.js  (clean, bug-free build)
    Modules: Credit · Spending · Loads · All Loads · Drivers · Driver Expenses
-   Auth: Admin (Sruthi) · Accountant (ramu)
+   Auth: Admin (Sruthi) · Accountant (ramu) · 7 Drivers
 ═══════════════════════════════════════════════════════════ */
 
 // ── Record cache (safe edit — no JSON-in-HTML) ─────────────
@@ -10,14 +10,28 @@ const _editCache = {};
 
 // ── Users & roles ──────────────────────────────────────────
 const USERS = {
-  'Sruthi': { pass: '2266',   role: 'admin',      name: 'Sruthi', initials: 'ST' },
-  'ramu':   { pass: '123456', role: 'accountant',  name: 'Ramu',   initials: 'RM' }
+  // Admin
+  'Sruthi':       { pass: '2266',     role: 'admin',      name: 'Sruthi',         initials: 'ST', driverName: null },
+  // Accountant
+  'ramu':         { pass: '123456',   role: 'accountant', name: 'Ramu',           initials: 'RM', driverName: null },
+  // Drivers — each sees only their own records
+  'satish':       { pass: 'satish1212',      role: 'driver', name: 'P Satish',       initials: 'PS', driverName: 'P Satish' },
+  'sanker':       { pass: 'sanker3434',      role: 'driver', name: 'A Sanker',       initials: 'AS', driverName: 'A Sanker' },
+  'bsrinu':       { pass: 'bsrinu5656',      role: 'driver', name: 'B Srinu',        initials: 'BS', driverName: 'B Srinu' },
+  'dsrinu':       { pass: 'dsrinu7878',      role: 'driver', name: 'D Srinu',        initials: 'DS', driverName: 'D Srinu' },
+  'surinarayana': { pass: 'suri9090',        role: 'driver', name: 'K Surinarayana', initials: 'KS', driverName: 'K Surinarayana' },
+  'santhosh':     { pass: 'santhosh1111',    role: 'driver', name: 'N Santhosh',     initials: 'NS', driverName: 'N Santhosh' },
+  'kanaka':       { pass: 'kanaka2222',      role: 'driver', name: 'G Kanaka',       initials: 'GK', driverName: 'G Kanaka' }
 };
+
+// Pages each role can access
 const ROLE_PAGES = {
   admin:      ['dashboard','credit','pending','loads','allloads','drivers','driverexp'],
-  accountant: ['allloads','drivers','driverexp']
+  accountant: ['allloads','drivers','driverexp'],
+  driver:     ['drivers','driverexp']   // driver sees only attendance + expenses (their own)
 };
-const AUTH_KEY   = 'st-auth-user';
+
+const AUTH_KEY  = 'st-auth-user';
 let   currentUser = null;
 
 function checkAuth() {
@@ -25,9 +39,16 @@ function checkAuth() {
   if (!s) return false;
   try { currentUser = JSON.parse(s); return !!currentUser; } catch { return false; }
 }
-function getRole()  { return currentUser?.role || 'admin'; }
-function isAdmin()  { return getRole() === 'admin'; }
-function firstPage(){ return getRole() === 'admin' ? 'dashboard' : 'allloads'; }
+function getRole()       { return currentUser?.role || 'admin'; }
+function isAdmin()       { return getRole() === 'admin'; }
+function isDriver()      { return getRole() === 'driver'; }
+function driverName()    { return currentUser?.driverName || null; }
+function firstPage() {
+  const r = getRole();
+  if (r === 'admin')  return 'dashboard';
+  if (r === 'driver') return 'drivers';
+  return 'allloads';
+}
 
 // ── App state ──────────────────────────────────────────────
 let db  = null;
@@ -198,6 +219,7 @@ function applyRole() {
   const role    = getRole();
   const allowed = ROLE_PAGES[role] || ROLE_PAGES.admin;
 
+  // Show/hide nav items
   document.querySelectorAll('.nav-item[data-page]').forEach(a => {
     a.style.display = allowed.includes(a.dataset.page) ? 'flex' : 'none';
   });
@@ -205,12 +227,25 @@ function applyRole() {
     b.style.display = allowed.includes(b.dataset.page) ? 'flex' : 'none';
   });
 
+  // Driver: hide Add buttons (they can still mark attendance / add their own expenses)
+  // Driver cannot edit or delete — handled in renderXxx via isDriver()
+  if (isDriver()) {
+    // Hide "Add Entry" button on Attendance page (they add their own via quick form)
+    document.querySelectorAll('.btn-primary[onclick*="openModal('drivers')"]').forEach(b => b.style.display='none');
+    // Show driver quick-mark attendance button instead
+    const quickBtn = document.getElementById('driverQuickAttBtn');
+    if (quickBtn) quickBtn.style.display = 'flex';
+  }
+
+  // User chip + role badge
   const chip = document.getElementById('userChip');
   if (chip) chip.textContent = currentUser?.initials || 'ST';
   const badge = document.getElementById('roleBadge');
   if (badge) {
-    badge.textContent = role === 'admin' ? '👑 Admin' : '📋 Accountant';
-    badge.className   = 'role-badge ' + (role === 'admin' ? 'rb-admin' : 'rb-accountant');
+    const labels = { admin:'👑 Admin', accountant:'📋 Accountant', driver:'🚛 Driver' };
+    const classes= { admin:'rb-admin', accountant:'rb-accountant', driver:'rb-driver' };
+    badge.textContent = labels[role] || role;
+    badge.className   = 'role-badge ' + (classes[role] || 'rb-driver');
   }
 
   setTimeout(() => go(firstPage()), 50);
@@ -424,7 +459,12 @@ function openModal(name, rec = null) {
     setTimeout(calcAllTotal, 60);
 
   } else if (name === 'driverexp') {
-    V('driverexpId', rec?.id||'');       V('fDexpDriver', rec?.driverName||'');
+    V('driverexpId', rec?.id||'');
+    // For driver role: auto-fill their name and lock it
+    const dn = isDriver() ? driverName() : (rec?.driverName||'');
+    V('fDexpDriver', dn);
+    const driverSel = document.getElementById('fDexpDriver');
+    if (driverSel) driverSel.disabled = isDriver(); // driver can't change their own name
     V('fDexpDate', rec?.date||today()); V('fDexpBeta', rec?.beta||'');
     V('fDexpMeals', rec?.meals||'');     V('fDexpHalf', rec?.halfLoading||'');
     V('fDexpOther', rec?.other||'');     V('fDexpComment', rec?.comment||'');
@@ -437,7 +477,12 @@ function openModal(name, rec = null) {
 
   } else if (name === 'drivers') {
     V('driversId', rec?.id||'');         V('fDriverDate', rec?.date||today());
-    V('fDriverName2', rec?.driverName||''); V('fDriverStatus', rec?.status||'Present');
+    // Auto-fill + lock driver name for driver role
+    const dn2 = isDriver() ? driverName() : (rec?.driverName||'');
+    V('fDriverName2', dn2);
+    const dn2el = document.getElementById('fDriverName2');
+    if (dn2el) dn2el.disabled = isDriver();
+    V('fDriverStatus', rec?.status||'Present');
     T('driversModalTitle', rec ? 'Edit Attendance' : 'Add Attendance');
     showModal('driversModal');
   }
@@ -730,8 +775,14 @@ function filtered(name) {
   const q  = (document.getElementById(`${name}Search`)?.value||'').toLowerCase();
   const co = document.getElementById('creditCo')?.value||'';
   const ds = document.getElementById('driverStatusFilter')?.value||'';
+  const myName = isDriver() ? driverName() : null; // driver sees only their records
 
   return data[name].filter(r => {
+    // Driver auto-filter: only show their own records in attendance + expenses
+    if (myName) {
+      if (name === 'drivers'   && r.driverName !== myName) return false;
+      if (name === 'driverexp' && r.driverName !== myName) return false;
+    }
     let txt='';
     if(name==='credit')    txt=`${r.company} ${r.account} ${r.date} ${r.amount}`;
     if(name==='pending')   txt=`${r.name} ${r.reason} ${r.date} ${r.amount}`;
@@ -860,9 +911,9 @@ function renderDrivers(rows, off) {
     <td>${fmtDate(r.date)}</td>
     <td><strong>${r.driverName}</strong></td>
     <td>${statusBadge(r.status)}</td>
-    <td>
-      <button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit("drivers",r)}")'><i class="bi bi-pencil-fill"></i></button>
-      <button class="abtn abtn-del"       onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
+    <td>${isDriver() ? '<span style="font-size:11px;color:var(--muted)">—</span>' :
+      `<button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit("drivers",r)}")'><i class="bi bi-pencil-fill"></i></button>
+       <button class="abtn abtn-del" onclick='askDelete("drivers","${r.id}")'><i class="bi bi-trash3-fill"></i></button>`}
     </td>
   </tr>`).join('');
 }
@@ -880,9 +931,9 @@ function renderDriverExp(rows, off) {
     <td class="mono">${r.other>0?'₹ '+fmt(r.other):'—'}</td>
     <td style="font-size:12px;color:var(--muted);max-width:110px;white-space:normal">${r.comment||'—'}</td>
     <td class="c-red"><strong>₹ ${fmt(r.total||0)}</strong></td>
-    <td>
-      <button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit("driverexp",r)}")'><i class="bi bi-pencil-fill"></i></button>
-      <button class="abtn abtn-del"       onclick='askDelete("driverexp","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
+    <td>${isDriver() ? '<span style="font-size:11px;color:var(--muted)">—</span>' :
+      `<button class="abtn abtn-edit me-1" onclick='editFromCache("${cacheEdit("driverexp",r)}")'><i class="bi bi-pencil-fill"></i></button>
+       <button class="abtn abtn-del" onclick='askDelete("driverexp","${r.id}")'><i class="bi bi-trash3-fill"></i></button>`}
     </td>
   </tr>`).join('');
 }
