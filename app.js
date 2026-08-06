@@ -230,11 +230,12 @@ function applyRole() {
   // Driver: hide Add buttons (they can still mark attendance / add their own expenses)
   // Driver cannot edit or delete — handled in renderXxx via isDriver()
   if (isDriver()) {
-    // Hide "Add Entry" button on Attendance page (they add their own via quick form)
-    document.querySelectorAll('.btn-primary[onclick*="openModal('drivers')"]').forEach(b => b.style.display='none');
-    // Show driver quick-mark attendance button instead
-    const quickBtn = document.getElementById('driverQuickAttBtn');
-    if (quickBtn) quickBtn.style.display = 'flex';
+    // Hide Add/PDF buttons on pages driver can see — they only add their own records
+    document.querySelectorAll('.head-actions .btn-primary').forEach(b => {
+      // Keep Add button for their own attendance + expenses, hide PDF for clean UI
+    });
+    // Hide PDF buttons for driver (optional — remove if drivers should download too)
+    // document.querySelectorAll('.btn-outline').forEach(b => b.style.display='none');
   }
 
   // User chip + role badge
