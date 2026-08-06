@@ -124,7 +124,7 @@ function doLogin() {
   setTimeout(() => {
     const userDef = USERS[id];
     if (userDef && pass === userDef.pass) {
-      currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials };
+      currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials, driverName: userDef.driverName || null };
       sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
 
       if (document.getElementById('rememberMe')?.checked) {
@@ -795,7 +795,8 @@ function filtered(name) {
     if(name==='credit'  && co) ok = ok && r.company===co;
     if(name==='drivers' && ds) ok = ok && r.status===ds;
     if(name==='driverexp') {
-      const df = document.getElementById('dexpDriverFilter')?.value||'';
+      // For driver role, their filter is already applied above — only apply month filter
+      const df = (!myName) ? (document.getElementById('dexpDriverFilter')?.value||'') : '';
       const mf = document.getElementById('dexpMonthFilter')?.value||'';
       if(df) ok = ok && r.driverName===df;
       if(mf) ok = ok && (r.date||'').startsWith(mf);
