@@ -845,7 +845,10 @@ function filtered(name) {
     // DIRECT FILTER — driver sees only their own attendance + expense records
     // Uses exact driverName from USERS table which must match Firebase storage
     if (myName && (name === 'drivers' || name === 'driverexp')) {
-      const recName = (r.driverName || '').trim().toLowerCase();
+      const normalize = (name) =>
+    (name || "")
+        .toLowerCase()
+        .replace(/[.\s]/g, "");
       const mine    = myName.trim().toLowerCase();
       if (recName !== mine) return false;  // hard block all other drivers
     }
