@@ -43,10 +43,11 @@ function getRole()       { return currentUser?.role || 'admin'; }
 function isAdmin()       { return getRole() === 'admin'; }
 function isDriver()      { return getRole() === 'driver'; }
 function getDriverName() {
-  // Prefer stored driverName, fallback to USERS lookup
-  if (currentUser?.driverName) return currentUser.driverName;
-  if (currentUser?.id && USERS[currentUser.id]?.driverName) return USERS[currentUser.id].driverName;
-  return null;
+  // Prefer stored driverName, fallback to USERS lookup by id
+  const name = currentUser?.driverName
+    || (currentUser?.id ? USERS[currentUser.id]?.driverName : null)
+    || null;
+  return name ? name.trim() : null;
 }
 function firstPage() {
   const r = getRole();
@@ -235,12 +236,14 @@ function applyRole() {
   // Driver: hide Add buttons (they can still mark attendance / add their own expenses)
   // Driver cannot edit or delete — handled in renderXxx via isDriver()
   if (isDriver()) {
-    // Hide Add/PDF buttons on pages driver can see — they only add their own records
-    document.querySelectorAll('.head-actions .btn-primary').forEach(b => {
-      // Keep Add button for their own attendance + expenses, hide PDF for clean UI
-    });
-    // Hide PDF buttons for driver (optional — remove if drivers should download too)
-    // document.querySelectorAll('.btn-outline').forEach(b => b.style.display='none');
+    // Hide Add Attendance + Add Expense buttons for driver login
+    const addAtt = document.getElementById('addAttendanceBtn');
+    const addExp = document.getElementById('addExpenseBtn');
+    if (addAtt) { addAtt.style.display = 'none'; }
+    if (addExp) { addExp.style.display = 'none'; }
+    // Also hide PDF button on attendance (drivers only need salary PDF)
+    const drvPdf = document.getElementById('driversPdfBtn');
+    if (drvPdf) { drvPdf.style.display = 'none'; }
   }
 
   // User chip + role badge
@@ -812,8 +815,10 @@ function filtered(name) {
   return data[name].filter(r => {
     // Driver auto-filter: only show their own records in attendance + expenses
     if (myName) {
-      if (name === 'drivers'   && r.driverName !== myName) return false;
-      if (name === 'driverexp' && r.driverName !== myName) return false;
+      const recName = (r.driverName || '').trim().toLowerCase();
+      const mine    = myName.trim().toLowerCase();
+      if (name === 'drivers'   && recName !== mine) return false;
+      if (name === 'driverexp' && recName !== mine) return false;
     }
     let txt='';
     if(name==='credit')    txt=`${r.company} ${r.account} ${r.date} ${r.amount}`;
