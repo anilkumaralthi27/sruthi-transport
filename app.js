@@ -845,12 +845,16 @@ function filtered(name) {
     // DIRECT FILTER — driver sees only their own attendance + expense records
     // Uses exact driverName from USERS table which must match Firebase storage
     if (myName && (name === 'drivers' || name === 'driverexp')) {
-      const normalize = (name) =>
-    (name || "")
+   function normalize(name) {
+    return (name || "")
         .toLowerCase()
         .replace(/[.\s]/g, "");
-      const mine    = myName.trim().toLowerCase();
-      if (recName !== mine) return false;  // hard block all other drivers
+}
+
+const recName = normalize(r.driverName);
+const mine = normalize(myName);
+
+if (recName !== mine) return false;  // hard block all other drivers
     }
     let txt='';
     if(name==='credit')    txt=`${r.company} ${r.account} ${r.date} ${r.amount}`;
