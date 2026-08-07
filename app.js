@@ -42,7 +42,12 @@ function checkAuth() {
 function getRole()       { return currentUser?.role || 'admin'; }
 function isAdmin()       { return getRole() === 'admin'; }
 function isDriver()      { return getRole() === 'driver'; }
-function driverName()    { return currentUser?.driverName || null; }
+function driverName() {
+  // Prefer stored driverName, fallback to USERS lookup
+  if (currentUser?.driverName) return currentUser.driverName;
+  if (currentUser?.id && USERS[currentUser.id]?.driverName) return USERS[currentUser.id].driverName;
+  return null;
+}
 function firstPage() {
   const r = getRole();
   if (r === 'admin')  return 'dashboard';
@@ -240,13 +245,39 @@ function applyRole() {
 
   // User chip + role badge
   const chip = document.getElementById('userChip');
-  if (chip) chip.textContent = currentUser?.initials || 'ST';
+  if (chip) {
+    if (isDriver()) {
+      // Show driver short name e.g. "P Satish" → show full
+      chip.textContent = currentUser?.initials || 'ST';
+      chip.title       = currentUser?.name || '';
+    } else {
+      chip.textContent = currentUser?.initials || 'ST';
+    }
+  }
+  // Also update topbar name label if exists
+  const nameLabel = document.getElementById('topUserName');
+  if (nameLabel) nameLabel.textContent = currentUser?.name || '';
   const badge = document.getElementById('roleBadge');
   if (badge) {
-    const labels = { admin:'👑 Admin', accountant:'📋 Accountant', driver:'🚛 Driver' };
-    const classes= { admin:'rb-admin', accountant:'rb-accountant', driver:'rb-driver' };
-    badge.textContent = labels[role] || role;
+    const classes = { admin:'rb-admin', accountant:'rb-accountant', driver:'rb-driver' };
+    const badgeText = role === 'driver'
+      ? '🚛 ' + (currentUser?.name || 'Driver')   // show actual driver name
+      : role === 'admin' ? '👑 Admin' : '📋 Accountant';
+    badge.textContent = badgeText;
     badge.className   = 'role-badge ' + (classes[role] || 'rb-driver');
+  }
+
+  // Driver: lock driver filter dropdowns to their name only
+  if (isDriver()) {
+    const dexpFilter = document.getElementById('dexpDriverFilter');
+    if (dexpFilter) {
+      dexpFilter.value   = driverName() || '';
+      dexpFilter.disabled = true;
+    }
+    // Hide salary summary header (will only show their card anyway)
+    // Hide the filter-by-driver label on driverexp page
+    const driverFilterGroup = dexpFilter?.closest('.fgroup');
+    if (driverFilterGroup) driverFilterGroup.style.display = 'none';
   }
 
   setTimeout(() => go(firstPage()), 50);
@@ -1361,7 +1392,8 @@ function renderSalarySummary() {
     container.innerHTML='<div class="col-12 text-center py-4" style="color:var(--muted);font-size:14px"><i class="bi bi-person-lines-fill" style="font-size:30px;opacity:.3;display:block;margin-bottom:8px"></i>No expense data for this month</div>';
     return;
   }
-  container.innerHTML=DRIVER_NAMES.map(name=>{
+  const visibleDrivers = isDriver() ? [driverName()].filter(Boolean) : DRIVER_NAMES;
+  container.innerHTML=visibleDrivers.map(name=>{
     const dExp=monthExp.filter(r=>r.driverName===name);
     const expAmt=dExp.reduce((s,r)=>s+(+r.total||0),0);
     const beta =dExp.reduce((s,r)=>s+(+r.beta||0),0);
