@@ -42,7 +42,7 @@ function checkAuth() {
 function getRole()       { return currentUser?.role || 'admin'; }
 function isAdmin()       { return getRole() === 'admin'; }
 function isDriver()      { return getRole() === 'driver'; }
-function driverName() {
+function getDriverName() {
   // Prefer stored driverName, fallback to USERS lookup
   if (currentUser?.driverName) return currentUser.driverName;
   if (currentUser?.id && USERS[currentUser.id]?.driverName) return USERS[currentUser.id].driverName;
@@ -271,7 +271,7 @@ function applyRole() {
   if (isDriver()) {
     const dexpFilter = document.getElementById('dexpDriverFilter');
     if (dexpFilter) {
-      dexpFilter.value   = driverName() || '';
+      dexpFilter.value   = getDriverName() || '';
       dexpFilter.disabled = true;
     }
     // Hide salary summary header (will only show their card anyway)
@@ -493,7 +493,7 @@ function openModal(name, rec = null) {
   } else if (name === 'driverexp') {
     V('driverexpId', rec?.id||'');
     // For driver role: auto-fill their name and lock it
-    const dn = isDriver() ? driverName() : (rec?.driverName||'');
+    const dn = isDriver() ? getDriverName() : (rec?.driverName||'');
     V('fDexpDriver', dn);
     const driverSel = document.getElementById('fDexpDriver');
     if (driverSel) driverSel.disabled = isDriver(); // driver can't change their own name
@@ -510,7 +510,7 @@ function openModal(name, rec = null) {
   } else if (name === 'drivers') {
     V('driversId', rec?.id||'');         V('fDriverDate', rec?.date||today());
     // Auto-fill + lock driver name for driver role
-    const dn2 = isDriver() ? driverName() : (rec?.driverName||'');
+    const dn2 = isDriver() ? getDriverName() : (rec?.driverName||'');
     V('fDriverName2', dn2);
     const dn2el = document.getElementById('fDriverName2');
     if (dn2el) dn2el.disabled = isDriver();
@@ -807,7 +807,7 @@ function filtered(name) {
   const q  = (document.getElementById(`${name}Search`)?.value||'').toLowerCase();
   const co = document.getElementById('creditCo')?.value||'';
   const ds = document.getElementById('driverStatusFilter')?.value||'';
-  const myName = isDriver() ? driverName() : null; // driver sees only their records
+  const myName = isDriver() ? getDriverName() : null; // driver sees only their records
 
   return data[name].filter(r => {
     // Driver auto-filter: only show their own records in attendance + expenses
@@ -1392,7 +1392,7 @@ function renderSalarySummary() {
     container.innerHTML='<div class="col-12 text-center py-4" style="color:var(--muted);font-size:14px"><i class="bi bi-person-lines-fill" style="font-size:30px;opacity:.3;display:block;margin-bottom:8px"></i>No expense data for this month</div>';
     return;
   }
-  const visibleDrivers = isDriver() ? [driverName()].filter(Boolean) : DRIVER_NAMES;
+  const visibleDrivers = isDriver() ? [getDriverName()].filter(Boolean) : DRIVER_NAMES;
   container.innerHTML=visibleDrivers.map(name=>{
     const dExp=monthExp.filter(r=>r.driverName===name);
     const expAmt=dExp.reduce((s,r)=>s+(+r.total||0),0);
@@ -1525,11 +1525,28 @@ function toast(msg,type='ok'){
 // ══════════════════════════════════════════════════════════
 
 function openSalaryPdfModal() {
-  // Default to current month
   const nowMonth = new Date().toISOString().slice(0,7);
   const monthEl  = document.getElementById('salaryPdfMonth');
   if (monthEl) monthEl.value = nowMonth;
-  document.getElementById('salaryPdfDriver').value = '';
+
+  // For driver role: lock to their own name, hide other drivers
+  const driverSel = document.getElementById('salaryPdfDriver');
+  if (driverSel) {
+    if (isDriver()) {
+      const myName = getDriverName() || '';
+      driverSel.value    = myName;
+      driverSel.disabled = true;
+      // Only show their own option
+      Array.from(driverSel.options).forEach(opt => {
+        opt.style.display = (opt.value === '' || opt.value === myName) ? '' : 'none';
+      });
+    } else {
+      driverSel.value    = '';
+      driverSel.disabled = false;
+      Array.from(driverSel.options).forEach(opt => opt.style.display = '');
+    }
+  }
+
   document.getElementById('salaryPdfPreview').style.display = 'none';
   document.getElementById('salaryPdfPreviewContent').innerHTML = '';
   new bootstrap.Modal(document.getElementById('salaryPdfModal')).show();
@@ -1563,7 +1580,10 @@ function previewSalaryPdf() {
   const driverSel  = document.getElementById('salaryPdfDriver').value;
   if (!month) { toast('⚠️ Please select a month','warn'); return; }
 
-  const drivers = driverSel ? [driverSel] : DRIVER_NAMES;
+  // Driver role: always only their own data
+  const drivers = isDriver()
+    ? [getDriverName()].filter(Boolean)
+    : (driverSel ? [driverSel] : DRIVER_NAMES);
   const [y,m]   = month.split('-');
   const label   = new Date(parseInt(y),parseInt(m)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
 
@@ -1594,7 +1614,10 @@ function downloadSalaryPdf() {
   const driverSel = document.getElementById('salaryPdfDriver').value;
   if (!month) { toast('⚠️ Please select a month','warn'); return; }
 
-  const drivers   = driverSel ? [driverSel] : DRIVER_NAMES;
+  // Driver role: always only their own data
+  const drivers = isDriver()
+    ? [getDriverName()].filter(Boolean)
+    : (driverSel ? [driverSel] : DRIVER_NAMES);
   const [y,m]     = month.split('-');
   const monthLabel= new Date(parseInt(y),parseInt(m)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
   const now       = new Date();
