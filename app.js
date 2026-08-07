@@ -283,7 +283,7 @@ function applyRole() {
     if (driverFilterGroup) driverFilterGroup.style.display = 'none';
   }
 
-  setTimeout(() => go(firstPage()), 50);
+  setTimeout(() => go(firstPage()), 100);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -433,6 +433,16 @@ async function loadAll() {
   await Promise.all(['credit','pending','loads','allLoads','drivers','driverexp'].map(fetchCol));
   spin(false);
   refreshDash();
+  // Re-render current active page after data loads
+  // (important for driver login: page shown before data arrived)
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const pageName = activePage.id.replace('page-','');
+    const nameMap = { drivers:'drivers', driverexp:'driverexp', credit:'credit',
+                      pending:'pending', loads:'loads', allloads:'allLoads', allLoads:'allLoads' };
+    const dataKey = nameMap[pageName];
+    if (dataKey) render(dataKey);
+  }
 }
 
 async function fetchCol(name) {
@@ -449,6 +459,15 @@ function loadFromLS() {
     render(n);
   });
   refreshDash();
+  // Re-render active page (driver may have landed before LS loaded)
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const pageName = activePage.id.replace('page-','');
+    const nameMap = { drivers:'drivers', driverexp:'driverexp', credit:'credit',
+                      pending:'pending', loads:'loads', allloads:'allLoads', allLoads:'allLoads' };
+    const dataKey = nameMap[pageName];
+    if (dataKey) render(dataKey);
+  }
 }
 function saveLS(name) { try { localStorage.setItem(`st-${name}`, JSON.stringify(data[name])); } catch {} }
 function genId()      { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
