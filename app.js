@@ -14,14 +14,14 @@ const USERS = {
   'Sruthi':       { pass: '2266',     role: 'admin',      name: 'Sruthi',         initials: 'ST', driverName: null },
   // Accountant
   'ramu':         { pass: '123456',   role: 'accountant', name: 'Ramu',           initials: 'RM', driverName: null },
-  // Drivers — each sees only their own records
-  'satish':       { pass: 'satish1212',      role: 'driver', name: 'P Satish',       initials: 'PS', driverName: 'P Satish' },
-  'sanker':       { pass: 'sanker3434',      role: 'driver', name: 'A Sanker',       initials: 'AS', driverName: 'A Sanker' },
-  'bsrinu':       { pass: 'bsrinu5656',      role: 'driver', name: 'B Srinu',        initials: 'BS', driverName: 'B Srinu' },
-  'dsrinu':       { pass: 'dsrinu7878',      role: 'driver', name: 'D Srinu',        initials: 'DS', driverName: 'D Srinu' },
-  'surinarayana': { pass: 'suri9090',        role: 'driver', name: 'K Surinarayana', initials: 'KS', driverName: 'K Surinarayana' },
-  'santhosh':     { pass: 'santhosh1111',    role: 'driver', name: 'N Santhosh',     initials: 'NS', driverName: 'N Santhosh' },
-  'kanaka':       { pass: 'kanaka2222',      role: 'driver', name: 'G Kanaka',       initials: 'GK', driverName: 'G Kanaka' }
+  // Drivers — driverName must match EXACTLY how names are stored in Firebase attendance records
+  'satish':       { pass: 'satish1212',   role: 'driver', name: 'P Satish',    initials: 'PS', driverName: 'P.satish' },
+  'sanker':       { pass: 'sanker3434',   role: 'driver', name: 'A Sanker',    initials: 'AS', driverName: 'A.sankar' },
+  'bsrinu':       { pass: 'bsrinu5656',   role: 'driver', name: 'B Srinu',     initials: 'BS', driverName: 'B.Srinu' },
+  'dsrinu':       { pass: 'dsrinu7878',   role: 'driver', name: 'D Srinu',     initials: 'DS', driverName: 'D.srinu' },
+  'surinarayana': { pass: 'suri9090',     role: 'driver', name: 'K Suribabu',  initials: 'KS', driverName: 'K.suribabu' },
+  'santhosh':     { pass: 'santhosh1111', role: 'driver', name: 'Puspa',       initials: 'PU', driverName: 'Puspa' },
+  'kanaka':       { pass: 'kanaka2222',   role: 'driver', name: 'G Kanaka',    initials: 'GK', driverName: 'G.kanaka' }
 };
 
 // Pages each role can access
@@ -244,6 +244,16 @@ function applyRole() {
     // Also hide PDF button on attendance (drivers only need salary PDF)
     const drvPdf = document.getElementById('driversPdfBtn');
     if (drvPdf) { drvPdf.style.display = 'none'; }
+
+    // Pre-fill search fields with driver's stored name (read-only feel)
+    const myName = getDriverName() || '';
+    const attSearch = document.getElementById('driversSearch');
+    if (attSearch) {
+      attSearch.value       = myName;
+      attSearch.readOnly    = true;
+      attSearch.style.color = 'var(--muted)';
+      attSearch.style.fontStyle = 'italic';
+    }
   }
 
   // User chip + role badge
@@ -832,12 +842,12 @@ function filtered(name) {
   const myName = isDriver() ? getDriverName() : null; // driver sees only their records
 
   return data[name].filter(r => {
-    // Driver auto-filter: only show their own records in attendance + expenses
-    if (myName) {
+    // DIRECT FILTER — driver sees only their own attendance + expense records
+    // Uses exact driverName from USERS table which must match Firebase storage
+    if (myName && (name === 'drivers' || name === 'driverexp')) {
       const recName = (r.driverName || '').trim().toLowerCase();
       const mine    = myName.trim().toLowerCase();
-      if (name === 'drivers'   && recName !== mine) return false;
-      if (name === 'driverexp' && recName !== mine) return false;
+      if (recName !== mine) return false;  // hard block all other drivers
     }
     let txt='';
     if(name==='credit')    txt=`${r.company} ${r.account} ${r.date} ${r.amount}`;
