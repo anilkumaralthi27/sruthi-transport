@@ -612,8 +612,8 @@ body{font-family:'Outfit',system-ui,sans-serif}
     <div class="page-head">
       <div><h2 class="page-h">Driver Attendance</h2><p class="page-sub">Daily driver attendance and availability tracking</p></div>
       <div class="head-actions">
-        <button class="btn-outline" onclick="openPdfFilter('drivers')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
-        <button class="btn-primary" onclick="openModal('drivers')"><i class="bi bi-plus-lg"></i> Add Attendance</button>
+        <button class="btn-outline" id="driversPdfBtn" onclick="openPdfFilter('drivers')"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn-primary" id="addAttendanceBtn" onclick="openModal('drivers')"><i class="bi bi-plus-lg"></i> Add Attendance</button>
       </div>
     </div>
     <div class="glass-card mb-4">
@@ -661,7 +661,7 @@ body{font-family:'Outfit',system-ui,sans-serif}
       <div class="head-actions">
         <button class="btn-outline" onclick="openPdfFilter('driverexp')"><i class="bi bi-file-earmark-pdf"></i> Expenses PDF</button>
         <button class="btn-outline" onclick="openSalaryPdfModal()" style="border-color:var(--green);color:var(--green)"><i class="bi bi-file-earmark-person"></i> Salary PDF</button>
-        <button class="btn-primary" onclick="openModal('driverexp')"><i class="bi bi-plus-lg"></i> Add Expense</button>
+        <button class="btn-primary" id="addExpenseBtn" onclick="openModal('driverexp')"><i class="bi bi-plus-lg"></i> Add Expense</button>
       </div>
     </div>
 
