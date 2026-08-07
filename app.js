@@ -1411,73 +1411,217 @@ function exportPDF(name, customRows=null) {
 //  SALARY SUMMARY
 // ══════════════════════════════════════════════════════════
 function renderSalarySummary() {
-  const picker=document.getElementById('salaryMonthPicker'); if(!picker) return;
-  const allMonths=[...new Set(data.driverexp.map(r=>(r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
-  const nowMonth=new Date().toISOString().slice(0,7);
-  if(!allMonths.includes(nowMonth)) allMonths.unshift(nowMonth);
-  const existing=[...picker.options].map(o=>o.value);
-  if(JSON.stringify(existing)!==JSON.stringify(allMonths)){
-    picker.innerHTML=allMonths.map(m=>{
-      const [y,mo]=m.split('-');
-      const lbl=new Date(parseInt(y),parseInt(mo)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
-      return `<option value="${m}">${lbl}</option>`;
-    }).join('');
-  }
-  const selMonth=picker.value||nowMonth;
-  const [sy,sm]=selMonth.split('-');
-  const label=new Date(parseInt(sy),parseInt(sm)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
-  set('salarySummaryMonth', label);
-  const monthExp=data.driverexp.filter(r=>(r.date||'').startsWith(selMonth));
-  const container=document.getElementById('salarySummaryCards'); if(!container) return;
-  if(!monthExp.length){
-    container.innerHTML='<div class="col-12 text-center py-4" style="color:var(--muted);font-size:14px"><i class="bi bi-person-lines-fill" style="font-size:30px;opacity:.3;display:block;margin-bottom:8px"></i>No expense data for this month</div>';
-    return;
-  }
-  const visibleDrivers = isDriver() ? [getDriverName()].filter(Boolean) : DRIVER_NAMES;
-  container.innerHTML=visibleDrivers.map(name=>{
-    const dExp=monthExp.filter(r=>r.driverName===name);
-    const expAmt=dExp.reduce((s,r)=>s+(+r.total||0),0);
-    const beta =dExp.reduce((s,r)=>s+(+r.beta||0),0);
-    const meals=dExp.reduce((s,r)=>s+(+r.meals||0),0);
-    const half =dExp.reduce((s,r)=>s+(+r.halfLoading||0),0);
-    const other=dExp.reduce((s,r)=>s+(+r.other||0),0);
-    const totalAllowance=dExp.reduce((s,r)=>s+(r.dailyAllowance||DAILY_ALLOWANCE),0);
-    const netAdj=dExp.reduce((s,r)=>{
-      if(r.netAdjustment!==undefined) return s+r.netAdjustment;
-      return s+((r.total||0)-(r.dailyAllowance||DAILY_ALLOWANCE));
-    },0);
-    const finalSalary=BASE_SALARY+netAdj;
-    const saving=netAdj<0?Math.abs(netAdj):0;
-    const extra =netAdj>0?netAdj:0;
-    const pct=Math.min(100,Math.round((Math.abs(netAdj)/BASE_SALARY)*100));
-    const progressColor=netAdj>0?'var(--red)':'var(--green)';
-    return `<div class="col-12 col-md-6 col-xl-4">
-      <div class="salary-card">
-        <div class="sc-header">
-          <div class="sc-avatar">${name.charAt(0)}</div>
-          <div class="sc-name">${name}</div>
-          <div class="sc-month">${label}</div>
-        </div>
-        <div class="sc-rows">
-          <div class="sc-row"><span>Base Salary</span><span class="sc-val-green">₹ ${fmt(BASE_SALARY)}</span></div>
-          <div class="sc-row"><span><i class="bi bi-calendar-check"></i> Allowance Given</span><span style="color:var(--blue)">₹ ${fmt(totalAllowance)}</span></div>
-          <div class="sc-row"><span><i class="bi bi-receipt"></i> Actual Spent</span><span style="color:var(--muted)">₹ ${fmt(expAmt)}</span></div>
-          ${beta >0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Beta</span><span class="sc-val-red">₹ ${fmt(beta)}</span></div>`:''}
-          ${meals>0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Meals</span><span class="sc-val-red">₹ ${fmt(meals)}</span></div>`:''}
-          ${half >0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Half Loading</span><span class="sc-val-red">₹ ${fmt(half)}</span></div>`:''}
-          ${other>0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Other</span><span class="sc-val-red">₹ ${fmt(other)}</span></div>`:''}
-          <div class="sc-divider"></div>
-          ${netAdj>0?`<div class="sc-row"><span><i class="bi bi-arrow-up-circle-fill" style="color:var(--red)"></i> Extra Added</span><span class="sc-val-red">+ ₹ ${fmt(extra)}</span></div>`:netAdj<0?`<div class="sc-row"><span><i class="bi bi-arrow-down-circle-fill" style="color:var(--green)"></i> Saving Deducted</span><span class="sc-val-green">− ₹ ${fmt(saving)}</span></div>`:`<div class="sc-row"><span><i class="bi bi-check-circle-fill" style="color:var(--green)"></i> Exact Allowance</span><span style="color:var(--green)">No adjustment</span></div>`}
-          <div class="sc-row sc-total"><span>Final Salary</span><span style="color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800">₹ ${fmt(finalSalary)}</span></div>
-        </div>
-        <div class="sc-progress-wrap"><div class="sc-progress-bar" style="width:${pct}%;background:${progressColor}"></div></div>
-        <div class="sc-footer">
-          ${netAdj>0?`<span style="color:var(--red)">⚠ Over by ₹ ${fmt(extra)}</span>`:netAdj<0?`<span style="color:var(--green)">✓ Saved ₹ ${fmt(saving)}</span>`:`<span style="color:var(--green)">✓ On budget</span>`}
-          &nbsp;·&nbsp; ${dExp.length} entr${dExp.length===1?'y':'ies'}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+    const picker = document.getElementById("salaryMonthPicker");
+    if (!picker) return;
+
+    // Build month dropdown
+    const allMonths = [...new Set(
+        data.driverexp
+            .map(r => (r.date || "").slice(0, 7))
+            .filter(Boolean)
+    )].sort().reverse();
+
+    const nowMonth = new Date().toISOString().slice(0, 7);
+
+    if (!allMonths.includes(nowMonth)) {
+        allMonths.unshift(nowMonth);
+    }
+
+    const existing = [...picker.options].map(o => o.value);
+
+    if (JSON.stringify(existing) !== JSON.stringify(allMonths)) {
+        picker.innerHTML = allMonths.map(m => {
+            const [y, mo] = m.split("-");
+            const lbl = new Date(y, mo - 1).toLocaleString("en-IN", {
+                month: "long",
+                year: "numeric"
+            });
+
+            return `<option value="${m}">${lbl}</option>`;
+        }).join("");
+    }
+
+    const selMonth = picker.value || nowMonth;
+
+    const [sy, sm] = selMonth.split("-");
+
+    const label = new Date(sy, sm - 1).toLocaleString("en-IN", {
+        month: "long",
+        year: "numeric"
+    });
+
+    set("salarySummaryMonth", label);
+
+    // Logged-in driver or Admin
+    const loginDriver = getDriverName();
+
+    // Filter month + driver
+    const monthExp = data.driverexp.filter(r => {
+
+        if (!(r.date || "").startsWith(selMonth))
+            return false;
+
+        if (isDriver()) {
+
+            const normalize = str =>
+                (str || "")
+                    .toLowerCase()
+                    .replace(/[.\s]/g, "");
+
+            return normalize(r.driverName) === normalize(loginDriver);
+        }
+
+        return true;
+    });
+
+    const container = document.getElementById("salarySummaryCards");
+
+    if (!container) return;
+
+    if (!monthExp.length) {
+        container.innerHTML =
+            `<div class="text-center text-muted py-4">
+                No expense data found for ${label}
+            </div>`;
+        return;
+    }
+
+    const visibleDrivers = isDriver()
+        ? [loginDriver]
+        : DRIVER_NAMES;
+
+    container.innerHTML = visibleDrivers.map(name => {
+
+        const normalize = str =>
+            (str || "")
+                .toLowerCase()
+                .replace(/[.\s]/g, "");
+
+        const dExp = monthExp.filter(r =>
+            normalize(r.driverName) === normalize(name)
+        );
+
+        const expAmt = dExp.reduce((s, r) => s + (+r.total || 0), 0);
+
+        const beta = dExp.reduce((s, r) => s + (+r.beta || 0), 0);
+
+        const meals = dExp.reduce((s, r) => s + (+r.meals || 0), 0);
+
+        const half = dExp.reduce((s, r) => s + (+r.halfLoading || 0), 0);
+
+        const other = dExp.reduce((s, r) => s + (+r.other || 0), 0);
+
+        const totalAllowance = dExp.reduce(
+            (s, r) => s + (r.dailyAllowance || DAILY_ALLOWANCE),
+            0
+        );
+
+        const netAdj = dExp.reduce((s, r) => {
+
+            if (r.netAdjustment !== undefined)
+                return s + r.netAdjustment;
+
+            return s + ((r.total || 0) - (r.dailyAllowance || DAILY_ALLOWANCE));
+
+        }, 0);
+
+        const finalSalary = BASE_SALARY + netAdj;
+
+        const saving = netAdj < 0 ? Math.abs(netAdj) : 0;
+
+        const extra = netAdj > 0 ? netAdj : 0;
+
+        const pct = Math.min(
+            100,
+            Math.round((Math.abs(netAdj) / BASE_SALARY) * 100)
+        );
+
+        const progressColor =
+            netAdj > 0 ? "var(--red)" : "var(--green)";
+
+        return `
+<div class="col-12 col-md-6 col-xl-4">
+
+<div class="salary-card">
+
+<div class="sc-header">
+<div class="sc-avatar">${name.charAt(0)}</div>
+<div class="sc-name">${name}</div>
+<div class="sc-month">${label}</div>
+</div>
+
+<div class="sc-rows">
+
+<div class="sc-row">
+<span>Base Salary</span>
+<span class="sc-val-green">₹ ${fmt(BASE_SALARY)}</span>
+</div>
+
+<div class="sc-row">
+<span><i class="bi bi-calendar-check"></i> Allowance Given</span>
+<span style="color:var(--blue)">₹ ${fmt(totalAllowance)}</span>
+</div>
+
+<div class="sc-row">
+<span><i class="bi bi-receipt"></i> Actual Spent</span>
+<span>₹ ${fmt(expAmt)}</span>
+</div>
+
+${beta > 0 ? `<div class="sc-row"><span>Beta</span><span>₹ ${fmt(beta)}</span></div>` : ""}
+${meals > 0 ? `<div class="sc-row"><span>Meals</span><span>₹ ${fmt(meals)}</span></div>` : ""}
+${half > 0 ? `<div class="sc-row"><span>Half Loading</span><span>₹ ${fmt(half)}</span></div>` : ""}
+${other > 0 ? `<div class="sc-row"><span>Other</span><span>₹ ${fmt(other)}</span></div>` : ""}
+
+<div class="sc-divider"></div>
+
+<div class="sc-row">
+<span>${netAdj > 0
+        ? "Extra Added"
+        : netAdj < 0
+            ? "Saving Deducted"
+            : "Exact Allowance"}</span>
+
+<span style="color:${netAdj > 0 ? "var(--red)" : "var(--green)"}">
+
+${netAdj > 0
+        ? `+ ₹ ${fmt(extra)}`
+        : netAdj < 0
+            ? `− ₹ ${fmt(saving)}`
+            : "No adjustment"}
+
+</span>
+</div>
+
+<div class="sc-row sc-total">
+<span>Final Salary</span>
+<span style="color:var(--amber);font-size:18px;font-weight:700;">
+₹ ${fmt(finalSalary)}
+</span>
+</div>
+
+</div>
+
+<div class="sc-progress-wrap">
+<div class="sc-progress-bar"
+style="width:${pct}%;background:${progressColor};">
+</div>
+</div>
+
+<div class="sc-footer">
+${netAdj > 0
+        ? `⚠ Over by ₹ ${fmt(extra)}`
+        : netAdj < 0
+            ? `✓ Saved ₹ ${fmt(saving)}`
+            : `✓ On budget`}
+&nbsp; • &nbsp;
+${dExp.length} entr${dExp.length === 1 ? "y" : "ies"}
+</div>
+
+</div>
+
+</div>
+`;
+    }).join("");
 }
 
 // ══════════════════════════════════════════════════════════
