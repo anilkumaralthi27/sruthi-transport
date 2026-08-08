@@ -1150,25 +1150,135 @@ function selectPdfOpt(el) {
 }
 
 function downloadFilteredPDF() {
-  const sel  = document.querySelector('.pdf-opt.selected');
-  const type = sel ? sel.dataset.val : 'all';
-  let rows   = filtered(pdfModule);
-  const now  = new Date();
 
-  if(type==='current') {
-    rows=rows.filter(r=>{const d=new Date(r.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-  } else if(type==='lastmonth') {
-    const lm=now.getMonth()===0?11:now.getMonth()-1, ly=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
-    rows=rows.filter(r=>{const d=new Date(r.date);return d.getMonth()===lm&&d.getFullYear()===ly;});
-  } else if(type==='custom') {
-    const fv=document.getElementById('fromDate').value, tv=document.getElementById('toDate').value;
-    if(!fv||!tv){toast('⚠️ Select both dates','warn');return;}
-    const fr=new Date(fv), to=new Date(tv); to.setHours(23,59,59);
-    rows=rows.filter(r=>{const d=new Date(r.date);return d>=fr&&d<=to;});
-  }
-  if(!rows.length){toast('⚠️ No records in selected range','warn');return;}
-  hideModal('pdfModal');
-  exportPDF(pdfModule, rows);
+    const sel = document.querySelector('.pdf-opt.selected');
+    const type = sel ? sel.dataset.val : 'all';
+
+    const now = new Date();
+
+    // ---------------------------------------------------------
+    // DRIVER SECURITY FILTER
+    // ---------------------------------------------------------
+    const normalizeDriverName = (name) => {
+        return (name || '')
+            .toLowerCase()
+            .replace(/[.\s]/g, '');
+    };
+
+    let rows = data[pdfModule] ? [...data[pdfModule]] : [];
+
+    // Driver can ONLY download his own Driver Expenses
+    if (isDriver() && pdfModule === 'driverexp') {
+
+        const myDriver = normalizeDriverName(getDriverName());
+
+        rows = rows.filter(r => {
+            return normalizeDriverName(r.driverName) === myDriver;
+        });
+    }
+    else {
+        // Admin / Accountant use normal filtering
+        rows = filtered(pdfModule);
+    }
+
+    // ---------------------------------------------------------
+    // DATE FILTER
+    // ---------------------------------------------------------
+
+    if (type === 'current') {
+
+        rows = rows.filter(r => {
+
+            const d = new Date(r.date);
+
+            return (
+                d.getMonth() === now.getMonth() &&
+                d.getFullYear() === now.getFullYear()
+            );
+
+        });
+
+    }
+    else if (type === 'lastmonth') {
+
+        const lm =
+            now.getMonth() === 0
+                ? 11
+                : now.getMonth() - 1;
+
+        const ly =
+            now.getMonth() === 0
+                ? now.getFullYear() - 1
+                : now.getFullYear();
+
+        rows = rows.filter(r => {
+
+            const d = new Date(r.date);
+
+            return (
+                d.getMonth() === lm &&
+                d.getFullYear() === ly
+            );
+
+        });
+
+    }
+    else if (type === 'custom') {
+
+        const fv = document.getElementById('fromDate').value;
+        const tv = document.getElementById('toDate').value;
+
+        if (!fv || !tv) {
+
+            toast(
+                '⚠️ Select both dates',
+                'warn'
+            );
+
+            return;
+        }
+
+        const fr = new Date(fv);
+
+        const to = new Date(tv);
+        to.setHours(23, 59, 59, 999);
+
+        rows = rows.filter(r => {
+
+            const d = new Date(r.date);
+
+            return d >= fr && d <= to;
+
+        });
+    }
+
+    // ---------------------------------------------------------
+    // NO DATA
+    // ---------------------------------------------------------
+
+    if (!rows.length) {
+
+        toast(
+            isDriver() && pdfModule === 'driverexp'
+                ? '⚠️ No expense records found for your account in the selected range'
+                : '⚠️ No records in selected range',
+            'warn'
+        );
+
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // CLOSE MODAL
+    // ---------------------------------------------------------
+
+    hideModal('pdfModal');
+
+    // ---------------------------------------------------------
+    // GENERATE PDF
+    // ---------------------------------------------------------
+
+    exportPDF(pdfModule, rows);
 }
 
 function exportPDF(name, customRows=null) {
