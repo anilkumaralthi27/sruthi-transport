@@ -1849,58 +1849,238 @@ function openSalaryPdfModal() {
 
 // ── Build salary data for a driver + month ──────────────────
 function buildDriverSalaryData(driverName, month) {
-  const monthExp = data.driverexp.filter(r =>
-    r.driverName === driverName && (r.date||'').startsWith(month)
-  );
 
-  const expAmt       = monthExp.reduce((s,r) => s+(+r.total||0), 0);
-  const beta         = monthExp.reduce((s,r) => s+(+r.beta||0), 0);
-  const meals        = monthExp.reduce((s,r) => s+(+r.meals||0), 0);
-  const halfLoading  = monthExp.reduce((s,r) => s+(+r.halfLoading||0), 0);
-  const other        = monthExp.reduce((s,r) => s+(+r.other||0), 0);
-  const totalAllowance = monthExp.reduce((s,r) => s+(r.dailyAllowance||DAILY_ALLOWANCE), 0);
-  const netAdj       = monthExp.reduce((s,r) => {
-    if (r.netAdjustment !== undefined) return s + r.netAdjustment;
-    return s + ((r.total||0) - (r.dailyAllowance||DAILY_ALLOWANCE));
-  }, 0);
-  const finalSalary  = BASE_SALARY + netAdj;
+    // Normalize driver names:
+    // B.srinu  -> bsrinu
+    // B Srinu  -> bsrinu
+    // B.Srinu  -> bsrinu
+    const normalizeName = (name) => {
+        return String(name || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[.\s]/g, '');
+    };
 
-  return { driverName, month, entries: monthExp, expAmt, beta, meals, halfLoading, other,
-           totalAllowance, netAdj, finalSalary, entryCount: monthExp.length };
+    const targetName = normalizeName(driverName);
+
+    const monthExp = data.driverexp.filter(r => {
+
+        const recordName = normalizeName(r.driverName);
+
+        const recordMonth = String(r.date || '').slice(0, 7);
+
+        return (
+            recordName === targetName &&
+            recordMonth === month
+        );
+    });
+
+    const expAmt = monthExp.reduce(
+        (s, r) => s + (parseFloat(r.total) || 0),
+        0
+    );
+
+    const beta = monthExp.reduce(
+        (s, r) => s + (parseFloat(r.beta) || 0),
+        0
+    );
+
+    const meals = monthExp.reduce(
+        (s, r) => s + (parseFloat(r.meals) || 0),
+        0
+    );
+
+    const halfLoading = monthExp.reduce(
+        (s, r) => s + (parseFloat(r.halfLoading) || 0),
+        0
+    );
+
+    const other = monthExp.reduce(
+        (s, r) => s + (parseFloat(r.other) || 0),
+        0
+    );
+
+    const totalAllowance = monthExp.reduce(
+        (s, r) => {
+
+            const allowance =
+                r.dailyAllowance !== undefined &&
+                r.dailyAllowance !== null &&
+                r.dailyAllowance !== ''
+                    ? parseFloat(r.dailyAllowance)
+                    : DAILY_ALLOWANCE;
+
+            return s + (allowance || 0);
+        },
+        0
+    );
+
+    const netAdj = monthExp.reduce(
+        (s, r) => {
+
+            if (
+                r.netAdjustment !== undefined &&
+                r.netAdjustment !== null &&
+                r.netAdjustment !== ''
+            ) {
+                return s + (parseFloat(r.netAdjustment) || 0);
+            }
+
+            const total =
+                parseFloat(r.total) || 0;
+
+            const allowance =
+                r.dailyAllowance !== undefined &&
+                r.dailyAllowance !== null &&
+                r.dailyAllowance !== ''
+                    ? parseFloat(r.dailyAllowance)
+                    : DAILY_ALLOWANCE;
+
+            return s + (total - allowance);
+        },
+        0
+    );
+
+    const finalSalary = BASE_SALARY + netAdj;
+
+    return {
+        driverName,
+        month,
+        entries: monthExp,
+
+        expAmt,
+        beta,
+        meals,
+        halfLoading,
+        other,
+
+        totalAllowance,
+        netAdj,
+        finalSalary,
+
+        entryCount: monthExp.length
+    };
 }
 
 // ── Preview ─────────────────────────────────────────────────
 function previewSalaryPdf() {
-  const month      = document.getElementById('salaryPdfMonth').value;
-  const driverSel  = document.getElementById('salaryPdfDriver').value;
-  if (!month) { toast('⚠️ Please select a month','warn'); return; }
 
-  // Driver role: always only their own data
-  const drivers = isDriver()
-    ? [getDriverName()].filter(Boolean)
-    : (driverSel ? [driverSel] : DRIVER_NAMES);
-  const [y,m]   = month.split('-');
-  const label   = new Date(parseInt(y),parseInt(m)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+    const month =
+        document.getElementById('salaryPdfMonth')?.value;
 
-  const previewEl = document.getElementById('salaryPdfPreviewContent');
-  const wrapEl    = document.getElementById('salaryPdfPreview');
+    const driverSel =
+        document.getElementById('salaryPdfDriver')?.value;
 
-  previewEl.innerHTML = drivers.map(name => {
-    const d = buildDriverSalaryData(name, month);
-    const sign = d.netAdj >= 0 ? '+' : '−';
-    const adjColor = d.netAdj > 0 ? 'var(--red)' : d.netAdj < 0 ? 'var(--green)' : 'var(--muted)';
-    return `
-    <div class="spy-card">
-      <div class="spy-name"><i class="bi bi-person-circle"></i> ${name}</div>
-      <div class="spy-row"><span>Base Salary</span><span class="spy-green">₹ ${fmt(BASE_SALARY)}</span></div>
-      <div class="spy-row"><span>Allowance Given</span><span style="color:var(--blue)">₹ ${fmt(d.totalAllowance)}</span></div>
-      <div class="spy-row"><span>Actual Spent</span><span style="color:var(--muted)">₹ ${fmt(d.expAmt)}</span></div>
-      <div class="spy-row"><span>Net Adjustment</span><span style="color:${adjColor}">${sign} ₹ ${fmt(Math.abs(d.netAdj))}</span></div>
-      <div class="spy-row spy-total"><span>Final Salary</span><span>₹ ${fmt(d.finalSalary)}</span></div>
-    </div>`;
-  }).join('');
+    if (!month) {
+        toast('⚠️ Please select a month', 'warn');
+        return;
+    }
 
-  wrapEl.style.display = 'block';
+    // DRIVER
+    // Always use logged-in driver
+    const drivers = isDriver()
+        ? [getDriverName()].filter(Boolean)
+        : (driverSel ? [driverSel] : DRIVER_NAMES);
+
+    if (!drivers.length) {
+        toast('⚠️ Driver not found', 'warn');
+        return;
+    }
+
+    const [y, m] = month.split('-');
+
+    const label = new Date(
+        parseInt(y),
+        parseInt(m) - 1
+    ).toLocaleString(
+        'en-IN',
+        {
+            month: 'long',
+            year: 'numeric'
+        }
+    );
+
+    const previewEl =
+        document.getElementById(
+            'salaryPdfPreviewContent'
+        );
+
+    const wrapEl =
+        document.getElementById(
+            'salaryPdfPreview'
+        );
+
+    if (!previewEl || !wrapEl) return;
+
+    previewEl.innerHTML = drivers.map(name => {
+
+        const d =
+            buildDriverSalaryData(
+                name,
+                month
+            );
+
+        const sign =
+            d.netAdj >= 0
+                ? '+'
+                : '−';
+
+        const adjColor =
+            d.netAdj > 0
+                ? 'var(--red)'
+                : d.netAdj < 0
+                    ? 'var(--green)'
+                    : 'var(--muted)';
+
+        return `
+            <div class="spy-card">
+
+                <div class="spy-name">
+                    <i class="bi bi-person-circle"></i>
+                    ${name}
+                </div>
+
+                <div class="spy-row">
+                    <span>Base Salary</span>
+                    <span class="spy-green">
+                        ₹ ${fmt(BASE_SALARY)}
+                    </span>
+                </div>
+
+                <div class="spy-row">
+                    <span>Allowance Given</span>
+                    <span style="color:var(--blue)">
+                        ₹ ${fmt(d.totalAllowance)}
+                    </span>
+                </div>
+
+                <div class="spy-row">
+                    <span>Actual Spent</span>
+                    <span style="color:var(--muted)">
+                        ₹ ${fmt(d.expAmt)}
+                    </span>
+                </div>
+
+                <div class="spy-row">
+                    <span>Net Adjustment</span>
+                    <span style="color:${adjColor}">
+                        ${sign} ₹ ${fmt(Math.abs(d.netAdj))}
+                    </span>
+                </div>
+
+                <div class="spy-row spy-total">
+                    <span>Final Salary</span>
+                    <span>
+                        ₹ ${fmt(d.finalSalary)}
+                    </span>
+                </div>
+
+            </div>
+        `;
+
+    }).join('');
+
+    wrapEl.style.display = 'block';
 }
 
 // ── Download salary PDF ─────────────────────────────────────
@@ -1928,7 +2108,16 @@ function downloadSalaryPdf() {
   doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal');
   doc.text('Driver Salary Report — ' + monthLabel, 14, 20);
   doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text(driverSel ? `Salary: ${driverSel}` : 'All Drivers Salary Summary', 14, 28);
+  const pdfTitle =
+    drivers.length === 1
+        ? `Salary: ${drivers[0]}`
+        : 'All Drivers Salary Summary';
+
+doc.text(
+    pdfTitle,
+    14,
+    28
+);
   doc.setTextColor(180,190,210); doc.setFontSize(8); doc.setFont('helvetica','normal');
   doc.text('Generated: ' + dStr, 196, 28, {align:'right'});
 
@@ -1988,7 +2177,7 @@ function downloadSalaryPdf() {
   yPos = doc.lastAutoTable.finalY + 12;
 
   // ── Expense breakdown per driver (if single driver or space allows) ──
-  if (driverSel && allData[0]?.entries?.length > 0) {
+  if (drivers.length === 1 && allData[0]?.entries?.length > 0)  {
     const d = allData[0];
     doc.setTextColor(11,20,55); doc.setFontSize(10); doc.setFont('helvetica','bold');
     doc.text('Expense Breakdown — ' + d.driverName, 14, yPos);
@@ -2031,8 +2220,10 @@ function downloadSalaryPdf() {
     doc.text(`Page ${i} of ${pc}`, 196, 293, {align:'right'});
   }
 
-  const fname = driverSel
-    ? `sruthi-salary-${driverSel.replace(/ /g,'-').toLowerCase()}-${month}.pdf`
+ const fname = drivers.length === 1
+    ? `sruthi-salary-${drivers[0]
+        .replace(/[.\s]+/g, '-')
+        .toLowerCase()}-${month}.pdf`
     : `sruthi-salary-all-drivers-${month}.pdf`;
   doc.save(fname);
   bootstrap.Modal.getInstance(document.getElementById('salaryPdfModal'))?.hide();
