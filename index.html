@@ -278,6 +278,9 @@ body{font-family:'Outfit',system-ui,sans-serif}
     <a class="nav-item" data-page="allloads" href="#">
       <i class="bi bi-truck"></i><span>All Loads</span>
     </a>
+    <a class="nav-item" data-page="driverdash" href="#" id="navDriverDash" style="display:none">
+      <i class="bi bi-speedometer2"></i><span>My Dashboard</span>
+    </a>
     <a class="nav-item" data-page="drivers" href="#">
       <i class="bi bi-person-badge"></i><span>Driver Attendance</span>
     </a>
@@ -435,6 +438,63 @@ body{font-family:'Outfit',system-ui,sans-serif}
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════ DRIVER DASHBOARD ═══════════════════ -->
+  <section class="page" id="page-driverdash">
+    <div class="page-head">
+      <div>
+        <h2 class="page-h" id="ddWelcome">My Dashboard</h2>
+        <p class="page-sub">Your personal expense and attendance summary</p>
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-4">
+        <div class="stat-card s-amber h-100">
+          <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+          <div><div class="stat-lbl">Total Expenses</div><div class="stat-val" id="dd-total">₹0.00</div></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="stat-card s-red h-100">
+          <div class="stat-icon"><i class="bi bi-calendar-day"></i></div>
+          <div><div class="stat-lbl">Today's Expense</div><div class="stat-val" id="dd-today">₹0.00</div></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="stat-card s-blue h-100">
+          <div class="stat-icon"><i class="bi bi-calendar-month"></i></div>
+          <div><div class="stat-lbl">This Month</div><div class="stat-val" id="dd-month">₹0.00</div></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="stat-card s-green h-100">
+          <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+          <div><div class="stat-lbl">Present (Month)</div><div class="stat-val" id="dd-present">0</div></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="stat-card s-red h-100">
+          <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
+          <div><div class="stat-lbl">Absent (Month)</div><div class="stat-val" id="dd-absent">0</div></div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="stat-card s-purple h-100">
+          <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+          <div><div class="stat-lbl">Month Entries</div><div class="stat-val" id="dd-entries">0</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent expenses -->
+    <div class="glass-card">
+      <div class="gc-head"><i class="bi bi-clock-history" style="color:var(--amber)"></i> Recent Expenses</div>
+      <div id="dd-recent"><div class="empty-ri">Loading…</div></div>
     </div>
   </section>
 
@@ -661,6 +721,7 @@ body{font-family:'Outfit',system-ui,sans-serif}
       <div class="head-actions">
         <button class="btn-outline" onclick="openPdfFilter('driverexp')"><i class="bi bi-file-earmark-pdf"></i> Expenses PDF</button>
         <button class="btn-outline" onclick="openSalaryPdfModal()" style="border-color:var(--green);color:var(--green)"><i class="bi bi-file-earmark-person"></i> Salary PDF</button>
+        <button class="btn-outline" id="addAdvanceBtn" onclick="openAdvanceModal()" style="border-color:var(--blue);color:var(--blue)"><i class="bi bi-cash-coin"></i> Add Advance</button>
         <button class="btn-primary" id="addExpenseBtn" onclick="openModal('driverexp')"><i class="bi bi-plus-lg"></i> Add Expense</button>
       </div>
     </div>
@@ -1123,6 +1184,57 @@ body{font-family:'Outfit',system-ui,sans-serif}
   </div>
 </div>
 
+
+<!-- SALARY ADVANCE MODAL -->
+<div class="modal fade" id="advanceModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content mpanel">
+      <div class="mhead" style="background:rgba(239,68,68,0.07)">
+        <h5><i class="bi bi-cash-coin" style="color:var(--red)"></i> Add Salary Advance</h5>
+        <button class="mclose" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="mbody">
+        <input type="hidden" id="advanceId"/>
+        <div class="advance-info-box">
+          <i class="bi bi-info-circle-fill"></i>
+          This amount will be <strong>deducted from the driver's final salary</strong> for the selected month.
+        </div>
+        <div class="frow2">
+          <div class="fgroup">
+            <label class="flabel">Driver Name <span class="req">*</span></label>
+            <select class="fselect" id="fAdvDriver">
+              <option value="">Select Driver…</option>
+              <option value="P Satish">P Satish</option>
+              <option value="A Sanker">A Sanker</option>
+              <option value="B Srinu">B Srinu</option>
+              <option value="D Srinu">D Srinu</option>
+              <option value="K Surinarayana">K Surinarayana</option>
+              <option value="N Santhosh">N Santhosh</option>
+              <option value="G Kanaka">G Kanaka</option>
+            </select>
+          </div>
+          <div class="fgroup">
+            <label class="flabel">Date <span class="req">*</span></label>
+            <input type="date" class="finput" id="fAdvDate"/>
+          </div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Advance Amount (₹) <span class="req">*</span></label>
+          <input type="number" class="finput" id="fAdvAmount" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">Reason</label>
+          <input type="text" class="finput" id="fAdvReason" placeholder="e.g. Medical emergency, family need…"/>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-danger" onclick="saveAdvance()"><i class="bi bi-check-lg"></i> Save Advance</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE CONFIRM MODAL -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -1210,6 +1322,9 @@ body{font-family:'Outfit',system-ui,sans-serif}
   <div class="mbn-inner">
     <button class="mbn-item active" data-page="dashboard" onclick="mbnGo(this,'dashboard')">
       <i class="bi bi-grid-1x2-fill"></i>Home
+    </button>
+    <button class="mbn-item" data-page="driverdash" onclick="mbnGo(this,'driverdash')" id="mbn-driverdash" style="display:none">
+      <i class="bi bi-speedometer2"></i>Mine
     </button>
     <button class="mbn-item" data-page="credit" onclick="mbnGo(this,'credit')" id="mbn-credit">
       <i class="bi bi-cash-stack"></i>Credit
