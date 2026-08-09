@@ -14,21 +14,22 @@ const USERS = {
   'Sruthi':       { pass: '2266',     role: 'admin',      name: 'Sruthi',         initials: 'ST', driverName: null },
   // Accountant
   'ramu':         { pass: '123456',   role: 'accountant', name: 'Ramu',           initials: 'RM', driverName: null },
-  // Drivers — driverName must match EXACTLY how names are stored in Firebase attendance records
-  'satish':       { pass: 'satish1212',   role: 'driver', name: 'P Satish',    initials: 'PS', driverName: 'P.satish' },
-  'sanker':       { pass: 'sanker3434',   role: 'driver', name: 'A Sanker',    initials: 'AS', driverName: 'A.sankar' },
-  'bsrinu':       { pass: 'bsrinu5656',   role: 'driver', name: 'B Srinu',     initials: 'BS', driverName: 'B.Srinu' },
-  'dsrinu':       { pass: 'dsrinu7878',   role: 'driver', name: 'D Srinu',     initials: 'DS', driverName: 'D.srinu' },
-  'surinarayana': { pass: 'suri9090',     role: 'driver', name: 'K Suribabu',  initials: 'KS', driverName: 'K.suribabu' },
-  'santhosh':     { pass: 'santhosh1111', role: 'driver', name: 'Puspa',       initials: 'PU', driverName: 'Puspa' },
-  'kanaka':       { pass: 'kanaka2222',   role: 'driver', name: 'G Kanaka',    initials: 'GK', driverName: 'G.kanaka' }
+  // Drivers — driverNameExact = used in expense dropdown (space format)
+  //            driverNameAlt  = used in attendance records (dot format)
+  'satish':       { pass: 'satish1212',   role: 'driver', name: 'P Satish',      initials: 'PS', driverName: 'P Satish',      driverNameAlt: 'P.satish' },
+  'sanker':       { pass: 'sanker3434',   role: 'driver', name: 'A Sanker',      initials: 'AS', driverName: 'A Sanker',      driverNameAlt: 'A.sankar' },
+  'bsrinu':       { pass: 'bsrinu5656',   role: 'driver', name: 'B Srinu',       initials: 'BS', driverName: 'B Srinu',       driverNameAlt: 'B.Srinu' },
+  'dsrinu':       { pass: 'dsrinu7878',   role: 'driver', name: 'D Srinu',       initials: 'DS', driverName: 'D Srinu',       driverNameAlt: 'D.srinu' },
+  'surinarayana': { pass: 'suri9090',     role: 'driver', name: 'K Surinarayana',initials: 'KS', driverName: 'K Surinarayana',driverNameAlt: 'K.suribabu' },
+  'santhosh':     { pass: 'santhosh1111', role: 'driver', name: 'N Santhosh',    initials: 'NS', driverName: 'N Santhosh',    driverNameAlt: 'Puspa' },
+  'kanaka':       { pass: 'kanaka2222',   role: 'driver', name: 'G Kanaka',      initials: 'GK', driverName: 'G Kanaka',      driverNameAlt: 'G.kanaka' }
 };
 
 // Pages each role can access
 const ROLE_PAGES = {
   admin:      ['dashboard','credit','pending','loads','allloads','drivers','driverexp'],
   accountant: ['allloads','drivers','driverexp'],
-  driver:     ['drivers','driverexp']   // driver sees only attendance + expenses (their own)
+  driver:     ['driverdash','drivers','driverexp']   // driver: own dashboard + attendance + expenses
 };
 
 const AUTH_KEY  = 'st-auth-user';
@@ -43,16 +44,21 @@ function getRole()       { return currentUser?.role || 'admin'; }
 function isAdmin()       { return getRole() === 'admin'; }
 function isDriver()      { return getRole() === 'driver'; }
 function getDriverName() {
-  // Prefer stored driverName, fallback to USERS lookup by id
+  // Returns expense-format name (space format: "P Satish")
   const name = currentUser?.driverName
     || (currentUser?.id ? USERS[currentUser.id]?.driverName : null)
     || null;
   return name ? name.trim() : null;
 }
+function getDriverNameAlt() {
+  // Returns attendance-format name (dot format: "P.satish") if different
+  const u = currentUser?.id ? USERS[currentUser.id] : null;
+  return u?.driverNameAlt ? u.driverNameAlt.trim() : getDriverName();
+}
 function firstPage() {
   const r = getRole();
   if (r === 'admin')  return 'dashboard';
-  if (r === 'driver') return 'drivers';
+  if (r === 'driver') return 'driverdash';
   return 'allloads';
 }
 
@@ -63,14 +69,15 @@ let delCb = null;
 let pdfModule = '';
 let allLoadsPdfView = 'both';
 
-const data = { credit:[], pending:[], loads:[], allLoads:[], drivers:[], driverexp:[] };
+const data = { credit:[], pending:[], loads:[], allLoads:[], drivers:[], driverexp:[], advances:[] };
 const pg   = {
   credit:   { cur:1, per:8, list:[] },
   pending:  { cur:1, per:8, list:[] },
   loads:    { cur:1, per:8, list:[] },
   allLoads: { cur:1, per:8, list:[] },
   drivers:  { cur:1, per:8, list:[] },
-  driverexp:{ cur:1, per:8, list:[] }
+  driverexp:{ cur:1, per:8, list:[] },
+  advances: { cur:1, per:8, list:[] }
 };
 
 // ── Constants ──────────────────────────────────────────────
@@ -130,7 +137,7 @@ function doLogin() {
   setTimeout(() => {
     const userDef = USERS[id];
     if (userDef && pass === userDef.pass) {
-      currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials, driverName: userDef.driverName || null };
+      currentUser = { id, role: userDef.role, name: userDef.name, initials: userDef.initials, driverName: userDef.driverName || null, driverNameAlt: userDef.driverNameAlt || null };
       sessionStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
 
       if (document.getElementById('rememberMe')?.checked) {
@@ -225,7 +232,7 @@ function applyRole() {
   const role    = getRole();
   const allowed = ROLE_PAGES[role] || ROLE_PAGES.admin;
 
-  // Show/hide nav items
+  // Show/hide nav items based on allowed pages
   document.querySelectorAll('.nav-item[data-page]').forEach(a => {
     a.style.display = allowed.includes(a.dataset.page) ? 'flex' : 'none';
   });
@@ -233,27 +240,49 @@ function applyRole() {
     b.style.display = allowed.includes(b.dataset.page) ? 'flex' : 'none';
   });
 
+  // Driver: show 'My Dashboard' nav, hide regular dashboard nav
+  const navDD  = document.getElementById('navDriverDash');
+  const mbnDD  = document.getElementById('mbn-driverdash');
+  if (isDriver()) {
+    if (navDD) navDD.style.display = 'flex';
+    if (mbnDD) mbnDD.style.display = 'flex';
+    // Update welcome heading with driver name
+    const wel = document.getElementById('ddWelcome');
+    if (wel) wel.textContent = 'Welcome, ' + (currentUser?.name || 'Driver');
+  } else {
+    if (navDD) navDD.style.display = 'none';
+    if (mbnDD) mbnDD.style.display = 'none';
+  }
+
   // Driver: hide Add buttons (they can still mark attendance / add their own expenses)
   // Driver cannot edit or delete — handled in renderXxx via isDriver()
+  // Role-based button visibility
+  const addAtt = document.getElementById('addAttendanceBtn');
+  const addExp = document.getElementById('addExpenseBtn');
+  const drvPdf = document.getElementById('driversPdfBtn');
   if (isDriver()) {
-    // Hide Add Attendance + Add Expense buttons for driver login
-    const addAtt = document.getElementById('addAttendanceBtn');
-    const addExp = document.getElementById('addExpenseBtn');
-    if (addAtt) { addAtt.style.display = 'none'; }
-    if (addExp) { addExp.style.display = 'none'; }
-    // Also hide PDF button on attendance (drivers only need salary PDF)
-    const drvPdf = document.getElementById('driversPdfBtn');
-    if (drvPdf) { drvPdf.style.display = 'none'; }
-
-    // Pre-fill search fields with driver's stored name (read-only feel)
-    const myName = getDriverName() || '';
-    const attSearch = document.getElementById('driversSearch');
-    if (attSearch) {
-      attSearch.value       = myName;
-      attSearch.readOnly    = true;
-      attSearch.style.color = 'var(--muted)';
-      attSearch.style.fontStyle = 'italic';
+    // Drivers: hide Add buttons and attendance PDF
+    if (addAtt) addAtt.style.display = 'none';
+    if (addExp) addExp.style.display = 'none';
+    if (drvPdf) drvPdf.style.display = 'none';
+    const addAdv = document.getElementById('addAdvanceBtn');
+    if (addAdv) addAdv.style.display = 'none';
+    // Lock driver filter dropdown on expense page
+    const dexpFilter = document.getElementById('dexpDriverFilter');
+    if (dexpFilter) {
+      dexpFilter.value    = getDriverName() || '';
+      dexpFilter.disabled = true;
+      if (dexpFilter.parentElement) dexpFilter.parentElement.style.display = 'none';
     }
+  } else {
+    // Admin/Accountant: show all buttons
+    if (addAtt) addAtt.style.display = '';
+    if (addExp) addExp.style.display = '';
+    if (drvPdf) drvPdf.style.display = '';
+    const addAdv2 = document.getElementById('addAdvanceBtn');
+    if (addAdv2) addAdv2.style.display = '';
+    const dexpFilter = document.getElementById('dexpDriverFilter');
+    if (dexpFilter) { dexpFilter.disabled = false; if (dexpFilter.parentElement) dexpFilter.parentElement.style.display = ''; }
   }
 
   // User chip + role badge
@@ -381,7 +410,7 @@ function go(page, skipHistory = false) {
   document.querySelectorAll('.mbn-item').forEach(b => b.classList.toggle('active', b.dataset.page === page));
 
   const titles = {
-    dashboard:'Dashboard', credit:'Credit Amount', pending:'Spending Amount',
+    dashboard:'Dashboard', driverdash:'My Dashboard', credit:'Credit Amount', pending:'Spending Amount',
     loads:'Loads to Saburi', allloads:'All Loads', drivers:'Driver Attendance', driverexp:'Driver Expenses'
   };
   const titleEl = document.getElementById('pageTitle');
@@ -390,6 +419,7 @@ function go(page, skipHistory = false) {
   if (!skipHistory) navPush(page);
   window.scrollTo({ top:0, behavior:'smooth' });
   if (page === 'dashboard') refreshDash();
+  if (page === 'driverdash') refreshDriverDash();
 }
 
 function mbnGo(el, page) { go(page); closeSidebar(); }
@@ -440,7 +470,7 @@ function today() { return new Date().toISOString().slice(0,10); }
 
 async function loadAll() {
   spin(true);
-  await Promise.all(['credit','pending','loads','allLoads','drivers','driverexp'].map(fetchCol));
+  await Promise.all(['credit','pending','loads','allLoads','drivers','driverexp','advances'].map(fetchCol));
   spin(false);
   refreshDash();
   // Re-render current active page after data loads
@@ -452,6 +482,10 @@ async function loadAll() {
                       pending:'pending', loads:'loads', allloads:'allLoads', allLoads:'allLoads' };
     const dataKey = nameMap[pageName];
     if (dataKey) render(dataKey);
+    if (pageName === 'driverdash') { refreshDriverDash(); }
+    if (['drivers','driverexp'].includes(pageName)) renderSalarySummary();
+    if (isDriver() && pageName === 'drivers') render('drivers');
+    if (isDriver() && pageName === 'driverexp') render('driverexp');
   }
 }
 
@@ -464,7 +498,7 @@ async function fetchCol(name) {
 }
 
 function loadFromLS() {
-  ['credit','pending','loads','allLoads','drivers','driverexp'].forEach(n => {
+  ['credit','pending','loads','allLoads','drivers','driverexp','advances'].forEach(n => {
     try { data[n] = JSON.parse(localStorage.getItem(`st-${n}`) || '[]'); } catch { data[n]=[]; }
     render(n);
   });
@@ -477,6 +511,10 @@ function loadFromLS() {
                       pending:'pending', loads:'loads', allloads:'allLoads', allLoads:'allLoads' };
     const dataKey = nameMap[pageName];
     if (dataKey) render(dataKey);
+    if (pageName === 'driverdash') { refreshDriverDash(); }
+    if (['drivers','driverexp'].includes(pageName)) renderSalarySummary();
+    if (isDriver() && pageName === 'drivers') render('drivers');
+    if (isDriver() && pageName === 'driverexp') render('driverexp');
   }
 }
 function saveLS(name) { try { localStorage.setItem(`st-${name}`, JSON.stringify(data[name])); } catch {} }
@@ -710,6 +748,34 @@ async function saveDriverExp() {
   renderSalarySummary();
 }
 
+// ── Open Advance Modal ───────────────────────────────────
+function openAdvanceModal(rec = null) {
+  V('advanceId', rec?.id||'');
+  V('fAdvDriver', rec?.driverName||'');
+  V('fAdvDate', rec?.date||today());
+  V('fAdvAmount', rec?.amount||'');
+  V('fAdvReason', rec?.reason||'');
+  showModal('advanceModal');
+}
+
+// ── Save Salary Advance ──────────────────────────────────
+async function saveAdvance() {
+  const id         = document.getElementById('advanceId').value;
+  const driverName = document.getElementById('fAdvDriver').value;
+  const amount     = parseFloat(document.getElementById('fAdvAmount').value);
+  const date       = document.getElementById('fAdvDate').value;
+  const reason     = document.getElementById('fAdvReason').value.trim();
+  if (!driverName || isNaN(amount) || amount <= 0 || !date) {
+    toast('⚠️ Fill driver, amount and date','warn'); return;
+  }
+  await upsert('advances', id, {
+    driverName, amount, date, reason,
+    createdAt: new Date().toISOString()
+  });
+  bootstrap.Modal.getInstance(document.getElementById('advanceModal'))?.hide();
+  renderSalarySummary();
+}
+
 // ══════════════════════════════════════════════════════════
 //  CALC HELPERS
 // ══════════════════════════════════════════════════════════
@@ -842,19 +908,13 @@ function filtered(name) {
   const myName = isDriver() ? getDriverName() : null; // driver sees only their records
 
   return data[name].filter(r => {
-    // DIRECT FILTER — driver sees only their own attendance + expense records
-    // Uses exact driverName from USERS table which must match Firebase storage
+    // DIRECT FILTER — driver sees only their own records (both name formats)
     if (myName && (name === 'drivers' || name === 'driverexp')) {
-   function normalize(name) {
-    return (name || "")
-        .toLowerCase()
-        .replace(/[.\s]/g, "");
-}
-
-const recName = normalize(r.driverName);
-const mine = normalize(myName);
-
-if (recName !== mine) return false;  // hard block all other drivers
+      const recName  = (r.driverName || '').trim().toLowerCase();
+      const mine     = myName.trim().toLowerCase();
+      const mineAlt  = (isDriver() ? getDriverNameAlt() : '').trim().toLowerCase();
+      // Match either the expense-format OR attendance-format name
+      if (recName !== mine && recName !== mineAlt) return false;
     }
     let txt='';
     if(name==='credit')    txt=`${r.company} ${r.account} ${r.date} ${r.amount}`;
@@ -1093,6 +1153,58 @@ function goPage(name,p) {
 }
 
 // ══════════════════════════════════════════════════════════
+//  DRIVER DASHBOARD
+// ══════════════════════════════════════════════════════════
+function refreshDriverDash() {
+  if (!isDriver()) return;
+  const myName    = getDriverName();
+  const myNameAlt = getDriverNameAlt();
+  const todayStr  = new Date().toISOString().slice(0,10);
+  const monthStr  = new Date().toISOString().slice(0,7);
+
+  // Filter only this driver's expenses
+  const myExp = data.driverexp.filter(r => {
+    const n = (r.driverName||'').trim().toLowerCase();
+    return n === (myName||'').trim().toLowerCase() || n === (myNameAlt||'').trim().toLowerCase();
+  });
+
+  const totalExp   = myExp.reduce((s,r)=>s+(+r.total||0),0);
+  const todayExp   = myExp.filter(r=>r.date===todayStr).reduce((s,r)=>s+(+r.total||0),0);
+  const monthExp   = myExp.filter(r=>(r.date||'').startsWith(monthStr)).reduce((s,r)=>s+(+r.total||0),0);
+  const monthCount = myExp.filter(r=>(r.date||'').startsWith(monthStr)).length;
+
+  // Attendance this month
+  const myAtt = data.drivers.filter(r => {
+    const n = (r.driverName||'').trim().toLowerCase();
+    return n === (myName||'').trim().toLowerCase() || n === (myNameAlt||'').trim().toLowerCase();
+  });
+  const presentM = myAtt.filter(r=>(r.date||'').startsWith(monthStr)&&r.status==='Present').length;
+  const absentM  = myAtt.filter(r=>(r.date||'').startsWith(monthStr)&&r.status==='Absent').length;
+
+  set('dd-total',   '₹ '+fmt(totalExp));
+  set('dd-today',   '₹ '+fmt(todayExp));
+  set('dd-month',   '₹ '+fmt(monthExp));
+  set('dd-present', presentM);
+  set('dd-absent',  absentM);
+  set('dd-entries', monthCount+' entries');
+
+  // Recent expenses
+  const recEl = document.getElementById('dd-recent');
+  if (recEl) {
+    const recent = myExp.slice(0,6);
+    recEl.innerHTML = recent.length
+      ? recent.map(r=>`<div class="ri">
+          <div>
+            <div class="ri-name">${fmtDate(r.date)}</div>
+            <div class="ri-sub">${[r.beta>0?'Beta:₹'+fmt(r.beta):'', r.meals>0?'Meals:₹'+fmt(r.meals):'', r.halfLoading>0?'Half:₹'+fmt(r.halfLoading):'', r.other>0?'Other:₹'+fmt(r.other):''].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div class="ri-amt">₹ ${fmt(r.total)}</div>
+        </div>`).join('')
+      : '<div class="empty-ri">No expenses recorded yet</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════
 function refreshDash() {
@@ -1150,135 +1262,25 @@ function selectPdfOpt(el) {
 }
 
 function downloadFilteredPDF() {
+  const sel  = document.querySelector('.pdf-opt.selected');
+  const type = sel ? sel.dataset.val : 'all';
+  let rows   = filtered(pdfModule);
+  const now  = new Date();
 
-    const sel = document.querySelector('.pdf-opt.selected');
-    const type = sel ? sel.dataset.val : 'all';
-
-    const now = new Date();
-
-    // ---------------------------------------------------------
-    // DRIVER SECURITY FILTER
-    // ---------------------------------------------------------
-    const normalizeDriverName = (name) => {
-        return (name || '')
-            .toLowerCase()
-            .replace(/[.\s]/g, '');
-    };
-
-    let rows = data[pdfModule] ? [...data[pdfModule]] : [];
-
-    // Driver can ONLY download his own Driver Expenses
-    if (isDriver() && pdfModule === 'driverexp') {
-
-        const myDriver = normalizeDriverName(getDriverName());
-
-        rows = rows.filter(r => {
-            return normalizeDriverName(r.driverName) === myDriver;
-        });
-    }
-    else {
-        // Admin / Accountant use normal filtering
-        rows = filtered(pdfModule);
-    }
-
-    // ---------------------------------------------------------
-    // DATE FILTER
-    // ---------------------------------------------------------
-
-    if (type === 'current') {
-
-        rows = rows.filter(r => {
-
-            const d = new Date(r.date);
-
-            return (
-                d.getMonth() === now.getMonth() &&
-                d.getFullYear() === now.getFullYear()
-            );
-
-        });
-
-    }
-    else if (type === 'lastmonth') {
-
-        const lm =
-            now.getMonth() === 0
-                ? 11
-                : now.getMonth() - 1;
-
-        const ly =
-            now.getMonth() === 0
-                ? now.getFullYear() - 1
-                : now.getFullYear();
-
-        rows = rows.filter(r => {
-
-            const d = new Date(r.date);
-
-            return (
-                d.getMonth() === lm &&
-                d.getFullYear() === ly
-            );
-
-        });
-
-    }
-    else if (type === 'custom') {
-
-        const fv = document.getElementById('fromDate').value;
-        const tv = document.getElementById('toDate').value;
-
-        if (!fv || !tv) {
-
-            toast(
-                '⚠️ Select both dates',
-                'warn'
-            );
-
-            return;
-        }
-
-        const fr = new Date(fv);
-
-        const to = new Date(tv);
-        to.setHours(23, 59, 59, 999);
-
-        rows = rows.filter(r => {
-
-            const d = new Date(r.date);
-
-            return d >= fr && d <= to;
-
-        });
-    }
-
-    // ---------------------------------------------------------
-    // NO DATA
-    // ---------------------------------------------------------
-
-    if (!rows.length) {
-
-        toast(
-            isDriver() && pdfModule === 'driverexp'
-                ? '⚠️ No expense records found for your account in the selected range'
-                : '⚠️ No records in selected range',
-            'warn'
-        );
-
-        return;
-    }
-
-    // ---------------------------------------------------------
-    // CLOSE MODAL
-    // ---------------------------------------------------------
-
-    hideModal('pdfModal');
-
-    // ---------------------------------------------------------
-    // GENERATE PDF
-    // ---------------------------------------------------------
-
-    exportPDF(pdfModule, rows);
+  if(type==='current') {
+    rows=rows.filter(r=>{const d=new Date(r.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  } else if(type==='lastmonth') {
+    const lm=now.getMonth()===0?11:now.getMonth()-1, ly=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+    rows=rows.filter(r=>{const d=new Date(r.date);return d.getMonth()===lm&&d.getFullYear()===ly;});
+  } else if(type==='custom') {
+    const fv=document.getElementById('fromDate').value, tv=document.getElementById('toDate').value;
+    if(!fv||!tv){toast('⚠️ Select both dates','warn');return;}
+    const fr=new Date(fv), to=new Date(tv); to.setHours(23,59,59);
+    rows=rows.filter(r=>{const d=new Date(r.date);return d>=fr&&d<=to;});
+  }
+  if(!rows.length){toast('⚠️ No records in selected range','warn');return;}
+  hideModal('pdfModal');
+  exportPDF(pdfModule, rows);
 }
 
 function exportPDF(name, customRows=null) {
@@ -1521,217 +1523,77 @@ function exportPDF(name, customRows=null) {
 //  SALARY SUMMARY
 // ══════════════════════════════════════════════════════════
 function renderSalarySummary() {
-    const picker = document.getElementById("salaryMonthPicker");
-    if (!picker) return;
-
-    // Build month dropdown
-    const allMonths = [...new Set(
-        data.driverexp
-            .map(r => (r.date || "").slice(0, 7))
-            .filter(Boolean)
-    )].sort().reverse();
-
-    const nowMonth = new Date().toISOString().slice(0, 7);
-
-    if (!allMonths.includes(nowMonth)) {
-        allMonths.unshift(nowMonth);
-    }
-
-    const existing = [...picker.options].map(o => o.value);
-
-    if (JSON.stringify(existing) !== JSON.stringify(allMonths)) {
-        picker.innerHTML = allMonths.map(m => {
-            const [y, mo] = m.split("-");
-            const lbl = new Date(y, mo - 1).toLocaleString("en-IN", {
-                month: "long",
-                year: "numeric"
-            });
-
-            return `<option value="${m}">${lbl}</option>`;
-        }).join("");
-    }
-
-    const selMonth = picker.value || nowMonth;
-
-    const [sy, sm] = selMonth.split("-");
-
-    const label = new Date(sy, sm - 1).toLocaleString("en-IN", {
-        month: "long",
-        year: "numeric"
-    });
-
-    set("salarySummaryMonth", label);
-
-    // Logged-in driver or Admin
-    const loginDriver = getDriverName();
-
-    // Filter month + driver
-    const monthExp = data.driverexp.filter(r => {
-
-        if (!(r.date || "").startsWith(selMonth))
-            return false;
-
-        if (isDriver()) {
-
-            const normalize = str =>
-                (str || "")
-                    .toLowerCase()
-                    .replace(/[.\s]/g, "");
-
-            return normalize(r.driverName) === normalize(loginDriver);
-        }
-
-        return true;
-    });
-
-    const container = document.getElementById("salarySummaryCards");
-
-    if (!container) return;
-
-    if (!monthExp.length) {
-        container.innerHTML =
-            `<div class="text-center text-muted py-4">
-                No expense data found for ${label}
-            </div>`;
-        return;
-    }
-
-    const visibleDrivers = isDriver()
-        ? [loginDriver]
-        : DRIVER_NAMES;
-
-    container.innerHTML = visibleDrivers.map(name => {
-
-        const normalize = str =>
-            (str || "")
-                .toLowerCase()
-                .replace(/[.\s]/g, "");
-
-        const dExp = monthExp.filter(r =>
-            normalize(r.driverName) === normalize(name)
-        );
-
-        const expAmt = dExp.reduce((s, r) => s + (+r.total || 0), 0);
-
-        const beta = dExp.reduce((s, r) => s + (+r.beta || 0), 0);
-
-        const meals = dExp.reduce((s, r) => s + (+r.meals || 0), 0);
-
-        const half = dExp.reduce((s, r) => s + (+r.halfLoading || 0), 0);
-
-        const other = dExp.reduce((s, r) => s + (+r.other || 0), 0);
-
-        const totalAllowance = dExp.reduce(
-            (s, r) => s + (r.dailyAllowance || DAILY_ALLOWANCE),
-            0
-        );
-
-        const netAdj = dExp.reduce((s, r) => {
-
-            if (r.netAdjustment !== undefined)
-                return s + r.netAdjustment;
-
-            return s + ((r.total || 0) - (r.dailyAllowance || DAILY_ALLOWANCE));
-
-        }, 0);
-
-        const finalSalary = BASE_SALARY + netAdj;
-
-        const saving = netAdj < 0 ? Math.abs(netAdj) : 0;
-
-        const extra = netAdj > 0 ? netAdj : 0;
-
-        const pct = Math.min(
-            100,
-            Math.round((Math.abs(netAdj) / BASE_SALARY) * 100)
-        );
-
-        const progressColor =
-            netAdj > 0 ? "var(--red)" : "var(--green)";
-
-        return `
-<div class="col-12 col-md-6 col-xl-4">
-
-<div class="salary-card">
-
-<div class="sc-header">
-<div class="sc-avatar">${name.charAt(0)}</div>
-<div class="sc-name">${name}</div>
-<div class="sc-month">${label}</div>
-</div>
-
-<div class="sc-rows">
-
-<div class="sc-row">
-<span>Base Salary</span>
-<span class="sc-val-green">₹ ${fmt(BASE_SALARY)}</span>
-</div>
-
-<div class="sc-row">
-<span><i class="bi bi-calendar-check"></i> Allowance Given</span>
-<span style="color:var(--blue)">₹ ${fmt(totalAllowance)}</span>
-</div>
-
-<div class="sc-row">
-<span><i class="bi bi-receipt"></i> Actual Spent</span>
-<span>₹ ${fmt(expAmt)}</span>
-</div>
-
-${beta > 0 ? `<div class="sc-row"><span>Beta</span><span>₹ ${fmt(beta)}</span></div>` : ""}
-${meals > 0 ? `<div class="sc-row"><span>Meals</span><span>₹ ${fmt(meals)}</span></div>` : ""}
-${half > 0 ? `<div class="sc-row"><span>Half Loading</span><span>₹ ${fmt(half)}</span></div>` : ""}
-${other > 0 ? `<div class="sc-row"><span>Other</span><span>₹ ${fmt(other)}</span></div>` : ""}
-
-<div class="sc-divider"></div>
-
-<div class="sc-row">
-<span>${netAdj > 0
-        ? "Extra Added"
-        : netAdj < 0
-            ? "Saving Deducted"
-            : "Exact Allowance"}</span>
-
-<span style="color:${netAdj > 0 ? "var(--red)" : "var(--green)"}">
-
-${netAdj > 0
-        ? `+ ₹ ${fmt(extra)}`
-        : netAdj < 0
-            ? `− ₹ ${fmt(saving)}`
-            : "No adjustment"}
-
-</span>
-</div>
-
-<div class="sc-row sc-total">
-<span>Final Salary</span>
-<span style="color:var(--amber);font-size:18px;font-weight:700;">
-₹ ${fmt(finalSalary)}
-</span>
-</div>
-
-</div>
-
-<div class="sc-progress-wrap">
-<div class="sc-progress-bar"
-style="width:${pct}%;background:${progressColor};">
-</div>
-</div>
-
-<div class="sc-footer">
-${netAdj > 0
-        ? `⚠ Over by ₹ ${fmt(extra)}`
-        : netAdj < 0
-            ? `✓ Saved ₹ ${fmt(saving)}`
-            : `✓ On budget`}
-&nbsp; • &nbsp;
-${dExp.length} entr${dExp.length === 1 ? "y" : "ies"}
-</div>
-
-</div>
-
-</div>
-`;
-    }).join("");
+  const picker=document.getElementById('salaryMonthPicker'); if(!picker) return;
+  const allMonths=[...new Set(data.driverexp.map(r=>(r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  const nowMonth=new Date().toISOString().slice(0,7);
+  if(!allMonths.includes(nowMonth)) allMonths.unshift(nowMonth);
+  const existing=[...picker.options].map(o=>o.value);
+  if(JSON.stringify(existing)!==JSON.stringify(allMonths)){
+    picker.innerHTML=allMonths.map(m=>{
+      const [y,mo]=m.split('-');
+      const lbl=new Date(parseInt(y),parseInt(mo)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+      return `<option value="${m}">${lbl}</option>`;
+    }).join('');
+  }
+  const selMonth=picker.value||nowMonth;
+  const [sy,sm]=selMonth.split('-');
+  const label=new Date(parseInt(sy),parseInt(sm)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+  set('salarySummaryMonth', label);
+  const monthExp=data.driverexp.filter(r=>(r.date||'').startsWith(selMonth));
+  const container=document.getElementById('salarySummaryCards'); if(!container) return;
+  if(!monthExp.length){
+    container.innerHTML='<div class="col-12 text-center py-4" style="color:var(--muted);font-size:14px"><i class="bi bi-person-lines-fill" style="font-size:30px;opacity:.3;display:block;margin-bottom:8px"></i>No expense data for this month</div>';
+    return;
+  }
+  const visibleDrivers = isDriver() ? [getDriverName()].filter(Boolean) : DRIVER_NAMES;
+  container.innerHTML=visibleDrivers.map(name=>{
+    const dExp=monthExp.filter(r=>r.driverName===name);
+    const expAmt=dExp.reduce((s,r)=>s+(+r.total||0),0);
+    const beta =dExp.reduce((s,r)=>s+(+r.beta||0),0);
+    const meals=dExp.reduce((s,r)=>s+(+r.meals||0),0);
+    const half =dExp.reduce((s,r)=>s+(+r.halfLoading||0),0);
+    const other=dExp.reduce((s,r)=>s+(+r.other||0),0);
+    const totalAllowance=dExp.reduce((s,r)=>s+(r.dailyAllowance||DAILY_ALLOWANCE),0);
+    const netAdj=dExp.reduce((s,r)=>{
+      if(r.netAdjustment!==undefined) return s+r.netAdjustment;
+      return s+((r.total||0)-(r.dailyAllowance||DAILY_ALLOWANCE));
+    },0);
+    // Advances for this month
+    const monthAdv     = (data.advances||[]).filter(r => r.driverName===name && (r.date||'').startsWith(selMonth));
+    const totalAdvance = monthAdv.reduce((s,r)=>s+(+r.amount||0),0);
+    const finalSalary  = BASE_SALARY + netAdj - totalAdvance;
+    const saving=netAdj<0?Math.abs(netAdj):0;
+    const extra =netAdj>0?netAdj:0;
+    const pct=Math.min(100,Math.round(((Math.abs(netAdj)+totalAdvance)/BASE_SALARY)*100));
+    const progressColor=netAdj>0?'var(--red)':'var(--green)';
+    return `<div class="col-12 col-md-6 col-xl-4">
+      <div class="salary-card">
+        <div class="sc-header">
+          <div class="sc-avatar">${name.charAt(0)}</div>
+          <div class="sc-name">${name}</div>
+          <div class="sc-month">${label}</div>
+        </div>
+        <div class="sc-rows">
+          <div class="sc-row"><span>Base Salary</span><span class="sc-val-green">₹ ${fmt(BASE_SALARY)}</span></div>
+          <div class="sc-row"><span><i class="bi bi-calendar-check"></i> Allowance Given</span><span style="color:var(--blue)">₹ ${fmt(totalAllowance)}</span></div>
+          <div class="sc-row"><span><i class="bi bi-receipt"></i> Actual Spent</span><span style="color:var(--muted)">₹ ${fmt(expAmt)}</span></div>
+          ${beta >0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Beta</span><span class="sc-val-red">₹ ${fmt(beta)}</span></div>`:''}
+          ${meals>0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Meals</span><span class="sc-val-red">₹ ${fmt(meals)}</span></div>`:''}
+          ${half >0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Half Loading</span><span class="sc-val-red">₹ ${fmt(half)}</span></div>`:''}
+          ${other>0?`<div class="sc-row sc-exp"><span style="padding-left:12px">· Other</span><span class="sc-val-red">₹ ${fmt(other)}</span></div>`:''}
+          <div class="sc-divider"></div>
+          ${netAdj>0?`<div class="sc-row"><span><i class="bi bi-arrow-up-circle-fill" style="color:var(--red)"></i> Extra Added</span><span class="sc-val-red">+ ₹ ${fmt(extra)}</span></div>`:netAdj<0?`<div class="sc-row"><span><i class="bi bi-arrow-down-circle-fill" style="color:var(--green)"></i> Saving Deducted</span><span class="sc-val-green">− ₹ ${fmt(saving)}</span></div>`:`<div class="sc-row"><span><i class="bi bi-check-circle-fill" style="color:var(--green)"></i> Exact Allowance</span><span style="color:var(--green)">No adjustment</span></div>`}
+          ${totalAdvance>0?`<div class="sc-row" style="color:var(--red)"><span><i class="bi bi-cash-coin"></i> Advance Taken</span><span class="sc-val-red">− ₹ ${fmt(totalAdvance)}</span></div>`:''}
+          <div class="sc-row sc-total"><span>Final Salary</span><span style="color:var(--amber);font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800">₹ ${fmt(finalSalary)}</span></div>
+        </div>
+        <div class="sc-progress-wrap"><div class="sc-progress-bar" style="width:${pct}%;background:${progressColor}"></div></div>
+        <div class="sc-footer">
+          ${netAdj>0?`<span style="color:var(--red)">⚠ Over by ₹ ${fmt(extra)}</span>`:netAdj<0?`<span style="color:var(--green)">✓ Saved ₹ ${fmt(saving)}</span>`:`<span style="color:var(--green)">✓ On budget</span>`}
+          &nbsp;·&nbsp; ${dExp.length} entr${dExp.length===1?'y':'ies'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1849,1466 +1711,202 @@ function openSalaryPdfModal() {
 
 // ── Build salary data for a driver + month ──────────────────
 function buildDriverSalaryData(driverName, month) {
+  const monthExp = data.driverexp.filter(r =>
+    r.driverName === driverName && (r.date||'').startsWith(month)
+  );
 
-    // Normalize driver names:
-    // B.srinu  -> bsrinu
-    // B Srinu  -> bsrinu
-    // B.Srinu  -> bsrinu
-    const normalizeName = (name) => {
-        return String(name || '')
-            .trim()
-            .toLowerCase()
-            .replace(/[.\s]/g, '');
-    };
+  const expAmt       = monthExp.reduce((s,r) => s+(+r.total||0), 0);
+  const beta         = monthExp.reduce((s,r) => s+(+r.beta||0), 0);
+  const meals        = monthExp.reduce((s,r) => s+(+r.meals||0), 0);
+  const halfLoading  = monthExp.reduce((s,r) => s+(+r.halfLoading||0), 0);
+  const other        = monthExp.reduce((s,r) => s+(+r.other||0), 0);
+  const totalAllowance = monthExp.reduce((s,r) => s+(r.dailyAllowance||DAILY_ALLOWANCE), 0);
+  const netAdj       = monthExp.reduce((s,r) => {
+    if (r.netAdjustment !== undefined) return s + r.netAdjustment;
+    return s + ((r.total||0) - (r.dailyAllowance||DAILY_ALLOWANCE));
+  }, 0);
 
-    const targetName = normalizeName(driverName);
+  // Salary advances taken during this month
+  const monthAdv = (data.advances||[]).filter(r =>
+    r.driverName === driverName && (r.date||'').startsWith(month)
+  );
+  const totalAdvance = monthAdv.reduce((s,r) => s+(+r.amount||0), 0);
 
-    const monthExp = data.driverexp.filter(r => {
+  const finalSalary  = BASE_SALARY + netAdj - totalAdvance;
 
-        const recordName = normalizeName(r.driverName);
-
-        const recordMonth = String(r.date || '').slice(0, 7);
-
-        return (
-            recordName === targetName &&
-            recordMonth === month
-        );
-    });
-
-    const expAmt = monthExp.reduce(
-        (s, r) => s + (parseFloat(r.total) || 0),
-        0
-    );
-
-    const beta = monthExp.reduce(
-        (s, r) => s + (parseFloat(r.beta) || 0),
-        0
-    );
-
-    const meals = monthExp.reduce(
-        (s, r) => s + (parseFloat(r.meals) || 0),
-        0
-    );
-
-    const halfLoading = monthExp.reduce(
-        (s, r) => s + (parseFloat(r.halfLoading) || 0),
-        0
-    );
-
-    const other = monthExp.reduce(
-        (s, r) => s + (parseFloat(r.other) || 0),
-        0
-    );
-
-    const totalAllowance = monthExp.reduce(
-        (s, r) => {
-
-            const allowance =
-                r.dailyAllowance !== undefined &&
-                r.dailyAllowance !== null &&
-                r.dailyAllowance !== ''
-                    ? parseFloat(r.dailyAllowance)
-                    : DAILY_ALLOWANCE;
-
-            return s + (allowance || 0);
-        },
-        0
-    );
-
-    const netAdj = monthExp.reduce(
-        (s, r) => {
-
-            if (
-                r.netAdjustment !== undefined &&
-                r.netAdjustment !== null &&
-                r.netAdjustment !== ''
-            ) {
-                return s + (parseFloat(r.netAdjustment) || 0);
-            }
-
-            const total =
-                parseFloat(r.total) || 0;
-
-            const allowance =
-                r.dailyAllowance !== undefined &&
-                r.dailyAllowance !== null &&
-                r.dailyAllowance !== ''
-                    ? parseFloat(r.dailyAllowance)
-                    : DAILY_ALLOWANCE;
-
-            return s + (total - allowance);
-        },
-        0
-    );
-
-    const finalSalary = BASE_SALARY + netAdj;
-
-    return {
-        driverName,
-        month,
-        entries: monthExp,
-
-        expAmt,
-        beta,
-        meals,
-        halfLoading,
-        other,
-
-        totalAllowance,
-        netAdj,
-        finalSalary,
-
-        entryCount: monthExp.length
-    };
+  return { driverName, month, entries: monthExp, expAmt, beta, meals, halfLoading, other,
+           totalAllowance, netAdj, finalSalary, totalAdvance, advances: monthAdv,
+           entryCount: monthExp.length };
 }
 
 // ── Preview ─────────────────────────────────────────────────
 function previewSalaryPdf() {
+  const month      = document.getElementById('salaryPdfMonth').value;
+  const driverSel  = document.getElementById('salaryPdfDriver').value;
+  if (!month) { toast('⚠️ Please select a month','warn'); return; }
 
-    const month =
-        document.getElementById('salaryPdfMonth')?.value;
+  // Driver role: always only their own data
+  const drivers = isDriver()
+    ? [getDriverName()].filter(Boolean)
+    : (driverSel ? [driverSel] : DRIVER_NAMES);
+  const [y,m]   = month.split('-');
+  const label   = new Date(parseInt(y),parseInt(m)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
 
-    const driverSel =
-        document.getElementById('salaryPdfDriver')?.value;
+  const previewEl = document.getElementById('salaryPdfPreviewContent');
+  const wrapEl    = document.getElementById('salaryPdfPreview');
 
-    if (!month) {
-        toast('⚠️ Please select a month', 'warn');
-        return;
-    }
+  previewEl.innerHTML = drivers.map(name => {
+    const d = buildDriverSalaryData(name, month);
+    const sign = d.netAdj >= 0 ? '+' : '−';
+    const adjColor = d.netAdj > 0 ? 'var(--red)' : d.netAdj < 0 ? 'var(--green)' : 'var(--muted)';
+    return `
+    <div class="spy-card">
+      <div class="spy-name"><i class="bi bi-person-circle"></i> ${name}</div>
+      <div class="spy-row"><span>Base Salary</span><span class="spy-green">₹ ${fmt(BASE_SALARY)}</span></div>
+      <div class="spy-row"><span>Allowance Given</span><span style="color:var(--blue)">₹ ${fmt(d.totalAllowance)}</span></div>
+      <div class="spy-row"><span>Actual Spent</span><span style="color:var(--muted)">₹ ${fmt(d.expAmt)}</span></div>
+      <div class="spy-row"><span>Net Adjustment</span><span style="color:${adjColor}">${sign} ₹ ${fmt(Math.abs(d.netAdj))}</span></div>
+      ${d.totalAdvance>0?`<div class="spy-row" style="color:var(--red)"><span>Advance Deducted</span><span>− ₹ ${fmt(d.totalAdvance)}</span></div>`:''}
+      <div class="spy-row spy-total"><span>Final Salary</span><span>₹ ${fmt(d.finalSalary)}</span></div>
+    </div>`;
+  }).join('');
 
-    // DRIVER
-    // Always use logged-in driver
-    const drivers = isDriver()
-        ? [getDriverName()].filter(Boolean)
-        : (driverSel ? [driverSel] : DRIVER_NAMES);
-
-    if (!drivers.length) {
-        toast('⚠️ Driver not found', 'warn');
-        return;
-    }
-
-    const [y, m] = month.split('-');
-
-    const label = new Date(
-        parseInt(y),
-        parseInt(m) - 1
-    ).toLocaleString(
-        'en-IN',
-        {
-            month: 'long',
-            year: 'numeric'
-        }
-    );
-
-    const previewEl =
-        document.getElementById(
-            'salaryPdfPreviewContent'
-        );
-
-    const wrapEl =
-        document.getElementById(
-            'salaryPdfPreview'
-        );
-
-    if (!previewEl || !wrapEl) return;
-
-    previewEl.innerHTML = drivers.map(name => {
-
-        const d =
-            buildDriverSalaryData(
-                name,
-                month
-            );
-
-        const sign =
-            d.netAdj >= 0
-                ? '+'
-                : '−';
-
-        const adjColor =
-            d.netAdj > 0
-                ? 'var(--red)'
-                : d.netAdj < 0
-                    ? 'var(--green)'
-                    : 'var(--muted)';
-
-        return `
-            <div class="spy-card">
-
-                <div class="spy-name">
-                    <i class="bi bi-person-circle"></i>
-                    ${name}
-                </div>
-
-                <div class="spy-row">
-                    <span>Base Salary</span>
-                    <span class="spy-green">
-                        ₹ ${fmt(BASE_SALARY)}
-                    </span>
-                </div>
-
-                <div class="spy-row">
-                    <span>Allowance Given</span>
-                    <span style="color:var(--blue)">
-                        ₹ ${fmt(d.totalAllowance)}
-                    </span>
-                </div>
-
-                <div class="spy-row">
-                    <span>Actual Spent</span>
-                    <span style="color:var(--muted)">
-                        ₹ ${fmt(d.expAmt)}
-                    </span>
-                </div>
-
-                <div class="spy-row">
-                    <span>Net Adjustment</span>
-                    <span style="color:${adjColor}">
-                        ${sign} ₹ ${fmt(Math.abs(d.netAdj))}
-                    </span>
-                </div>
-
-                <div class="spy-row spy-total">
-                    <span>Final Salary</span>
-                    <span>
-                        ₹ ${fmt(d.finalSalary)}
-                    </span>
-                </div>
-
-            </div>
-        `;
-
-    }).join('');
-
-    wrapEl.style.display = 'block';
+  wrapEl.style.display = 'block';
 }
 
 // ── Download salary PDF ─────────────────────────────────────
 function downloadSalaryPdf() {
-
-    const monthEl = document.getElementById('salaryPdfMonth');
-    const driverEl = document.getElementById('salaryPdfDriver');
-
-    const month = monthEl ? monthEl.value : '';
-    const driverSel = driverEl ? driverEl.value : '';
-
-    if (!month) {
-        toast('⚠️ Please select a month', 'warn');
-        return;
-    }
-
-    // =========================================================
-    // DRIVER SECURITY
-    // =========================================================
-
-    let drivers;
-
-    if (isDriver()) {
-
-        const myName = getDriverName();
-
-        if (!myName) {
-            toast('⚠️ Driver name not found', 'warn');
-            return;
-        }
-
-        // Driver can ONLY download own salary
-        drivers = [myName];
-
-    } else {
-
-        // Admin / Accountant
-        drivers = driverSel
-            ? [driverSel]
-            : DRIVER_NAMES;
-    }
-
-    if (!drivers.length) {
-        toast('⚠️ No driver selected', 'warn');
-        return;
-    }
-
-    // =========================================================
-    // MONTH
-    // =========================================================
-
-    const [year, monthNumber] = month.split('-');
-
-    const monthLabel = new Date(
-        parseInt(year),
-        parseInt(monthNumber) - 1
-    ).toLocaleString('en-IN', {
-        month: 'long',
-        year: 'numeric'
-    });
-
-    const generatedDate = new Date().toLocaleDateString(
-        'en-IN',
-        {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric'
-        }
-    );
-
-    // =========================================================
-    // PDF
-    // =========================================================
-
-    const { jsPDF } = window.jspdf;
-
-    const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-    });
-
-    // =========================================================
-    // COLORS
-    // =========================================================
-
-    const NAVY = [10, 20, 48];
-    const NAVY2 = [25, 42, 78];
-
-    const GOLD = [245, 158, 11];
-
-    const GREEN = [16, 150, 90];
-
-    const RED = [210, 60, 60];
-
-    const BLUE = [45, 105, 210];
-
-    const LIGHT = [246, 248, 252];
-
-    const BORDER = [220, 225, 235];
-
-    const TEXT = [25, 35, 55];
-
-    const MUTED = [105, 115, 135];
-
-    // =========================================================
-    // HELPER FUNCTIONS
-    // =========================================================
-
-    function roundedBox(
-        x,
-        y,
-        w,
-        h,
-        fill,
-        radius = 4
-    ) {
-
-        doc.setFillColor(...fill);
-
-        doc.roundedRect(
-            x,
-            y,
-            w,
-            h,
-            radius,
-            radius,
-            'F'
-        );
-    }
-
-    function borderBox(
-        x,
-        y,
-        w,
-        h,
-        fill = [255, 255, 255]
-    ) {
-
-        doc.setFillColor(...fill);
-
-        doc.setDrawColor(...BORDER);
-
-        doc.roundedRect(
-            x,
-            y,
-            w,
-            h,
-            4,
-            4,
-            'FD'
-        );
-    }
-
-    function money(value) {
-
-        return 'INR ' + fmt(
-            Number(value) || 0
-        );
-    }
-
-    function text(
-        value,
-        x,
-        y,
-        size = 9,
-        color = TEXT,
-        style = 'normal'
-    ) {
-
-        doc.setTextColor(...color);
-
-        doc.setFontSize(size);
-
-        doc.setFont(
-            'helvetica',
-            style
-        );
-
-        doc.text(
-            String(value),
-            x,
-            y
-        );
-    }
-
-    // =========================================================
-    // BUILD SALARY DATA
-    // =========================================================
-
-    const allData = drivers.map(name =>
-        buildDriverSalaryData(
-            name,
-            month
-        )
-    );
-
-    const grandSalary = allData.reduce(
-        (sum, d) =>
-            sum + (Number(d.finalSalary) || 0),
-        0
-    );
-
-    const grandSpent = allData.reduce(
-        (sum, d) =>
-            sum + (Number(d.expAmt) || 0),
-        0
-    );
-
-    const grandAllowance = allData.reduce(
-        (sum, d) =>
-            sum + (Number(d.totalAllowance) || 0),
-        0
-    );
-
-    const grandAdjustment = allData.reduce(
-        (sum, d) =>
-            sum + (Number(d.netAdj) || 0),
-        0
-    );
-
-    // =========================================================
-    // PAGE 1 — PREMIUM SUMMARY
-    // =========================================================
-
-    doc.setFillColor(248, 249, 252);
-
-    doc.rect(
-        0,
-        0,
-        210,
-        297,
-        'F'
-    );
-
-    // ---------------------------------------------------------
-    // HEADER
-    // ---------------------------------------------------------
-
-    doc.setFillColor(...NAVY);
-
-    doc.rect(
-        0,
-        0,
-        210,
-        48,
-        'F'
-    );
-
-    // Gold accent
-    doc.setFillColor(...GOLD);
-
-    doc.rect(
-        0,
-        0,
-        6,
-        48,
-        'F'
-    );
-
-    text(
-        'SRUTHI TRANSPORT',
-        16,
-        16,
-        21,
-        [255, 255, 255],
-        'bold'
-    );
-
-    text(
-        'DRIVER SALARY REPORT',
-        16,
-        25,
-        8,
-        [190, 200, 220],
-        'bold'
-    );
-
-    text(
-        monthLabel.toUpperCase(),
-        16,
-        34,
-        11,
-        GOLD,
-        'bold'
-    );
-
-    // Generated
-    text(
-        'GENERATED',
-        155,
-        16,
-        7,
-        [170, 180, 200],
-        'bold'
-    );
-
-    text(
-        generatedDate,
-        155,
-        23,
-        9,
-        [255, 255, 255],
-        'normal'
-    );
-
-    // ---------------------------------------------------------
-    // DRIVER INFORMATION BOX
-    // ---------------------------------------------------------
-
-    let y = 58;
-
-    borderBox(
-        14,
-        y,
-        182,
-        30,
-        [255, 255, 255]
-    );
-
-    // Driver
-    text(
-        isDriver()
-            ? 'DRIVER'
-            : drivers.length === 1
-                ? 'DRIVER'
-                : 'REPORT',
-        22,
-        y + 9,
-        7,
-        MUTED,
-        'bold'
-    );
-
-    const reportName =
-        drivers.length === 1
-            ? drivers[0]
-            : 'ALL DRIVERS';
-
-    text(
-        reportName,
-        22,
-        y + 20,
-        14,
-        NAVY,
-        'bold'
-    );
-
-    // Month
-    text(
-        'PAY PERIOD',
-        125,
-        y + 9,
-        7,
-        MUTED,
-        'bold'
-    );
-
-    text(
-        monthLabel,
-        125,
-        y + 20,
-        11,
-        TEXT,
-        'bold'
-    );
-
-    y += 40;
-
-    // ---------------------------------------------------------
-    // SUMMARY TITLE
-    // ---------------------------------------------------------
-
-    text(
-        'SALARY SUMMARY',
-        14,
-        y,
-        12,
-        NAVY,
-        'bold'
-    );
-
-    text(
-        `${drivers.length} driver${drivers.length === 1 ? '' : 's'}`,
-        196,
-        y,
-        8,
-        MUTED,
-        'normal'
-    );
-
-    y += 8;
-
-    // ---------------------------------------------------------
-    // SUMMARY CARDS
-    // ---------------------------------------------------------
-
-    const cardGap = 5;
-
-    const cardWidth = 56;
-
-    const cardHeight = 34;
-
-    const cardX = [
-        14,
-        14 + cardWidth + cardGap,
-        14 + (cardWidth + cardGap) * 2
+  const month     = document.getElementById('salaryPdfMonth').value;
+  const driverSel = document.getElementById('salaryPdfDriver').value;
+  if (!month) { toast('⚠️ Please select a month','warn'); return; }
+
+  // Driver role: always only their own data
+  const drivers = isDriver()
+    ? [getDriverName()].filter(Boolean)
+    : (driverSel ? [driverSel] : DRIVER_NAMES);
+  const [y,m]     = month.split('-');
+  const monthLabel= new Date(parseInt(y),parseInt(m)-1).toLocaleString('en-IN',{month:'long',year:'numeric'});
+  const now       = new Date();
+  const dStr      = now.toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+
+  const {jsPDF}   = window.jspdf;
+  const doc       = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+  // ── Header bar ──
+  doc.setFillColor(11,20,55); doc.rect(0,0,210,34,'F');
+  doc.setTextColor(245,158,11); doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text('SRUTHI TRANSPORT', 14, 13);
+  doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Driver Salary Report — ' + monthLabel, 14, 20);
+  doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text(driverSel ? `Salary: ${driverSel}` : 'All Drivers Salary Summary', 14, 28);
+  doc.setTextColor(180,190,210); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Generated: ' + dStr, 196, 28, {align:'right'});
+
+  let yPos = 40;
+
+  // ── Summary totals box ──
+  const allData  = drivers.map(n => buildDriverSalaryData(n, month));
+  const grandTot = allData.reduce((s,d) => s + d.finalSalary, 0);
+  doc.setFillColor(240,242,250); doc.roundedRect(14, yPos, 182, 14, 3, 3, 'F');
+  doc.setTextColor(11,20,55); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text(`Drivers: ${drivers.length}`, 20, yPos+9);
+  doc.text(`Total Payout: INR ${fmt(grandTot)}`, 110, yPos+9);
+  yPos += 20;
+
+  // ── Per-driver salary table ──
+  const tableHead = [['#','Driver Name','Base Salary','Allowance','Spent','Adjustment','Advance','Final Salary']];
+  const tableBody = allData.map((d,i) => {
+    const sign = d.netAdj >= 0 ? '+' : '−';
+    return [
+      i+1,
+      d.driverName,
+      '₹ '+fmt(BASE_SALARY),
+      '₹ '+fmt(d.totalAllowance),
+      '₹ '+fmt(d.expAmt),
+      sign+' ₹ '+fmt(Math.abs(d.netAdj)),
+      (d.totalAdvance>0 ? '−₹'+fmt(d.totalAdvance) : '—'),
+      '₹ '+fmt(d.finalSalary)
     ];
+  });
 
-    // BASE SALARY
-    borderBox(
-        cardX[0],
-        y,
-        cardWidth,
-        cardHeight
-    );
-
-    text(
-        'BASE SALARY',
-        cardX[0] + 6,
-        y + 10,
-        7,
-        MUTED,
-        'bold'
-    );
-
-    text(
-        money(
-            allData.reduce(
-                (s, d) =>
-                    s + BASE_SALARY,
-                0
-            )
-        ),
-        cardX[0] + 6,
-        y + 23,
-        10,
-        GREEN,
-        'bold'
-    );
-
-    // ALLOWANCE
-    borderBox(
-        cardX[1],
-        y,
-        cardWidth,
-        cardHeight
-    );
-
-    text(
-        'ALLOWANCE',
-        cardX[1] + 6,
-        y + 10,
-        7,
-        MUTED,
-        'bold'
-    );
-
-    text(
-        money(grandAllowance),
-        cardX[1] + 6,
-        y + 23,
-        10,
-        BLUE,
-        'bold'
-    );
-
-    // SPENT
-    borderBox(
-        cardX[2],
-        y,
-        cardWidth,
-        cardHeight
-    );
-
-    text(
-        'ACTUAL SPENT',
-        cardX[2] + 6,
-        y + 10,
-        7,
-        MUTED,
-        'bold'
-    );
-
-    text(
-        money(grandSpent),
-        cardX[2] + 6,
-        y + 23,
-        10,
-        TEXT,
-        'bold'
-    );
-
-    y += cardHeight + 7;
-
-    // ---------------------------------------------------------
-    // ADJUSTMENT + FINAL SALARY
-    // ---------------------------------------------------------
-
-    // Adjustment box
-    borderBox(
-        14,
-        y,
-        87,
-        42
-    );
-
-    text(
-        'NET ADJUSTMENT',
-        22,
-        y + 11,
-        8,
-        MUTED,
-        'bold'
-    );
-
-    const adjPositive =
-        grandAdjustment >= 0;
-
-    text(
-        (adjPositive ? '+ ' : '− ') +
-        money(Math.abs(grandAdjustment)),
-        22,
-        y + 28,
-        14,
-        adjPositive ? RED : GREEN,
-        'bold'
-    );
-
-    text(
-        adjPositive
-            ? 'Extra expense'
-            : 'Savings',
-        22,
-        y + 36,
-        7,
-        adjPositive ? RED : GREEN,
-        'normal'
-    );
-
-    // Final salary
-    roundedBox(
-        108,
-        y,
-        88,
-        42,
-        NAVY
-    );
-
-    text(
-        'FINAL SALARY',
-        116,
-        y + 11,
-        8,
-        [180, 190, 210],
-        'bold'
-    );
-
-    text(
-        money(grandSalary),
-        116,
-        y + 29,
-        16,
-        GOLD,
-        'bold'
-    );
-
-    text(
-        'PAYABLE',
-        116,
-        y + 37,
-        7,
-        [170, 180, 200],
-        'bold'
-    );
-
-    y += 53;
-
-    // ---------------------------------------------------------
-    // DRIVER CARDS
-    // ---------------------------------------------------------
-
-    if (drivers.length > 1) {
-
-        text(
-            'DRIVER-WISE SUMMARY',
-            14,
-            y,
-            11,
-            NAVY,
-            'bold'
-        );
-
-        y += 7;
-
-        allData.forEach((d, index) => {
-
-            if (y > 260) {
-                doc.addPage();
-                y = 20;
-            }
-
-            borderBox(
-                14,
-                y,
-                182,
-                28
-            );
-
-            text(
-                `${index + 1}`,
-                20,
-                y + 17,
-                9,
-                GOLD,
-                'bold'
-            );
-
-            text(
-                d.driverName,
-                30,
-                y + 11,
-                9,
-                NAVY,
-                'bold'
-            );
-
-            text(
-                `Allowance ${money(d.totalAllowance)}`,
-                30,
-                y + 20,
-                7,
-                MUTED
-            );
-
-            text(
-                `Spent ${money(d.expAmt)}`,
-                92,
-                y + 11,
-                8,
-                TEXT,
-                'bold'
-            );
-
-            text(
-                `Adjustment ${(d.netAdj >= 0 ? '+ ' : '− ') + money(Math.abs(d.netAdj))}`,
-                92,
-                y + 20,
-                7,
-                d.netAdj >= 0 ? RED : GREEN
-            );
-
-            text(
-                money(d.finalSalary),
-                148,
-                y + 16,
-                10,
-                GOLD,
-                'bold'
-            );
-
-            y += 32;
-        });
+  doc.autoTable({
+    head: tableHead,
+    body: tableBody,
+    startY: yPos,
+    margin: {left:14, right:14},
+    headStyles: {fillColor:[11,20,55], textColor:[245,158,11], fontStyle:'bold', fontSize:9},
+    bodyStyles: {fontSize:9, textColor:[20,30,60]},
+    alternateRowStyles: {fillColor:[247,249,253]},
+    styles: {cellPadding:4, lineColor:[215,220,235], lineWidth:.2},
+    columnStyles: {
+      0: {halign:'center', cellWidth:10},
+      6: {fontStyle:'bold', textColor:[11,100,55]}
+    },
+    didParseCell(data) {
+      // Color adjustment column: red if positive (extra cost), green if negative (saving)
+      if (data.column.index === 5 && data.section === 'body') {
+        const val = allData[data.row.index];
+        if (val) data.cell.styles.textColor = val.netAdj > 0 ? [180,0,0] : val.netAdj < 0 ? [0,130,80] : [100,100,100];
+      }
+      // Color final salary amber
+      if (data.column.index === 6 && data.section === 'body') {
+        data.cell.styles.textColor = [180,100,0];
+        data.cell.styles.fontStyle = 'bold';
+      }
     }
-
-    // ---------------------------------------------------------
-    // PAGE 1 FOOTER
-    // ---------------------------------------------------------
-
-    doc.setFillColor(...NAVY);
-
-    doc.rect(
-        0,
-        287,
-        210,
-        10,
-        'F'
-    );
-
-    text(
-        'SRUTHI TRANSPORT  •  CONFIDENTIAL SALARY REPORT',
-        14,
-        293,
-        6.5,
-        [180, 190, 210]
-    );
-
-    text(
-        'Page 1',
-        196,
-        293,
-        6.5,
-        [180, 190, 210],
-        'normal'
-    );
-
-    // =========================================================
-    // PAGE 2 — EXPENSE BREAKDOWN
-    // =========================================================
-
-    // Only show detailed expenses when one driver is selected
-    if (
-        drivers.length === 1 &&
-        allData[0] &&
-        allData[0].entries &&
-        allData[0].entries.length
-    ) {
-
-        const d = allData[0];
-
-        doc.addPage(
-            'a4',
-            'landscape'
-        );
-
-        // Background
-        doc.setFillColor(
-            248,
-            249,
-            252
-        );
-
-        doc.rect(
-            0,
-            0,
-            297,
-            210,
-            'F'
-        );
-
-        // Header
-        doc.setFillColor(...NAVY);
-
-        doc.rect(
-            0,
-            0,
-            297,
-            38,
-            'F'
-        );
-
-        doc.setFillColor(...GOLD);
-
-        doc.rect(
-            0,
-            0,
-            6,
-            38,
-            'F'
-        );
-
-        text(
-            'EXPENSE BREAKDOWN',
-            16,
-            14,
-            15,
-            [255, 255, 255],
-            'bold'
-        );
-
-        text(
-            d.driverName,
-            16,
-            24,
-            10,
-            GOLD,
-            'bold'
-        );
-
-        text(
-            monthLabel,
-            16,
-            31,
-            7,
-            [180, 190, 210]
-        );
-
-        // Top right summary
-        text(
-            `Total Spent: ${money(d.expAmt)}`,
-            270,
-            15,
-            9,
-            [255, 255, 255],
-            'bold'
-        );
-
-        text(
-            `Entries: ${d.entryCount}`,
-            270,
-            25,
-            7,
-            [180, 190, 210],
-            'normal'
-        );
-
-        // -----------------------------------------------------
-        // EXPENSE TABLE
-        // -----------------------------------------------------
-
-        let tableY = 47;
-
-        const tableHead = [[
-            '#',
-            'DATE',
-            'BETA',
-            'MEALS',
-            'HALF LOADING',
-            'OTHER',
-            'COMMENT',
-            'TOTAL SPENT',
-            'ALLOWANCE',
-            'ADJUSTMENT'
-        ]];
-
-        const tableBody = d.entries.map(
-            (r, i) => {
-
-                const adj =
-                    r.netAdjustment !== undefined &&
-                    r.netAdjustment !== null
-                        ? Number(r.netAdjustment)
-                        : (
-                            Number(r.total || 0) -
-                            Number(
-                                r.dailyAllowance ||
-                                DAILY_ALLOWANCE
-                            )
-                        );
-
-                return [
-                    i + 1,
-
-                    fmtDate(r.date),
-
-                    r.beta > 0
-                        ? money(r.beta)
-                        : '—',
-
-                    r.meals > 0
-                        ? money(r.meals)
-                        : '—',
-
-                    r.halfLoading > 0
-                        ? money(r.halfLoading)
-                        : '—',
-
-                    r.other > 0
-                        ? money(r.other)
-                        : '—',
-
-                    r.comment || '—',
-
-                    money(r.total || 0),
-
-                    money(
-                        r.dailyAllowance ||
-                        DAILY_ALLOWANCE
-                    ),
-
-                    (adj >= 0 ? '+ ' : '− ') +
-                    money(Math.abs(adj))
-                ];
-            }
-        );
-
-        // TOTAL ROW
-        const totalRow = [[
-            '',
-            'TOTAL',
-
-            money(d.beta),
-
-            money(d.meals),
-
-            money(d.halfLoading),
-
-            money(d.other),
-
-            '',
-
-            money(d.expAmt),
-
-            money(d.totalAllowance),
-
-            (d.netAdj >= 0 ? '+ ' : '− ') +
-            money(Math.abs(d.netAdj))
-        ]];
-
-        doc.autoTable({
-
-            head: tableHead,
-
-            body: tableBody,
-
-            foot: totalRow,
-
-            startY: tableY,
-
-            margin: {
-                left: 14,
-                right: 14
-            },
-
-            theme: 'grid',
-
-            styles: {
-                font: 'helvetica',
-                fontSize: 8,
-                cellPadding: 4,
-                lineColor: BORDER,
-                lineWidth: 0.25,
-                textColor: TEXT,
-                valign: 'middle'
-            },
-
-            headStyles: {
-                fillColor: NAVY2,
-                textColor: GOLD,
-                fontStyle: 'bold',
-                fontSize: 7.5,
-                halign: 'center',
-                cellPadding: 4
-            },
-
-            bodyStyles: {
-                fillColor: [255, 255, 255],
-                fontSize: 7.5
-            },
-
-            alternateRowStyles: {
-                fillColor: [247, 249, 253]
-            },
-
-            footStyles: {
-                fillColor: [235, 239, 247],
-                textColor: NAVY,
-                fontStyle: 'bold',
-                fontSize: 7.5
-            },
-
-            columnStyles: {
-
-                0: {
-                    cellWidth: 9,
-                    halign: 'center'
-                },
-
-                1: {
-                    cellWidth: 25,
-                    halign: 'center'
-                },
-
-                2: {
-                    cellWidth: 25,
-                    halign: 'right'
-                },
-
-                3: {
-                    cellWidth: 25,
-                    halign: 'right'
-                },
-
-                4: {
-                    cellWidth: 29,
-                    halign: 'right'
-                },
-
-                5: {
-                    cellWidth: 25,
-                    halign: 'right'
-                },
-
-                6: {
-                    cellWidth: 55
-                },
-
-                7: {
-                    cellWidth: 29,
-                    halign: 'right'
-                },
-
-                8: {
-                    cellWidth: 29,
-                    halign: 'right'
-                },
-
-                9: {
-                    cellWidth: 30,
-                    halign: 'right'
-                }
-            },
-
-            didParseCell(data) {
-
-                // Adjustment column
-                if (
-                    data.column.index === 9 &&
-                    data.section === 'body'
-                ) {
-
-                    const row =
-                        d.entries[
-                            data.row.index
-                        ];
-
-                    const adj =
-                        row.netAdjustment !== undefined
-                            ? Number(row.netAdjustment)
-                            : (
-                                Number(row.total || 0) -
-                                Number(
-                                    row.dailyAllowance ||
-                                    DAILY_ALLOWANCE
-                                )
-                            );
-
-                    data.cell.styles.textColor =
-                        adj > 0
-                            ? RED
-                            : adj < 0
-                                ? GREEN
-                                : MUTED;
-                }
-
-                // Total spent
-                if (
-                    data.column.index === 7 &&
-                    data.section === 'body'
-                ) {
-                    data.cell.styles.fontStyle =
-                        'bold';
-                }
-
-                // Final total row
-                if (
-                    data.section === 'foot'
-                ) {
-                    data.cell.styles.fontStyle =
-                        'bold';
-                }
-            }
-        });
-
-        // -----------------------------------------------------
-        // BOTTOM SUMMARY BOXES
-        // -----------------------------------------------------
-
-        const finalY =
-            doc.lastAutoTable.finalY + 12;
-
-        const boxY =
-            Math.min(finalY, 178);
-
-        // Actual spent
-        borderBox(
-            14,
-            boxY,
-            62,
-            18
-        );
-
-        text(
-            'TOTAL SPENT',
-            20,
-            boxY + 7,
-            6.5,
-            MUTED,
-            'bold'
-        );
-
-        text(
-            money(d.expAmt),
-            20,
-            boxY + 14,
-            9,
-            NAVY,
-            'bold'
-        );
-
-        // Allowance
-        borderBox(
-            81,
-            boxY,
-            62,
-            18
-        );
-
-        text(
-            'ALLOWANCE',
-            87,
-            boxY + 7,
-            6.5,
-            MUTED,
-            'bold'
-        );
-
-        text(
-            money(d.totalAllowance),
-            87,
-            boxY + 14,
-            9,
-            BLUE,
-            'bold'
-        );
-
-        // Adjustment
-        borderBox(
-            148,
-            boxY,
-            62,
-            18
-        );
-
-        text(
-            'ADJUSTMENT',
-            154,
-            boxY + 7,
-            6.5,
-            MUTED,
-            'bold'
-        );
-
-        text(
-            (d.netAdj >= 0 ? '+ ' : '− ') +
-            money(Math.abs(d.netAdj)),
-            154,
-            boxY + 14,
-            9,
-            d.netAdj >= 0
-                ? RED
-                : GREEN,
-            'bold'
-        );
-
-        // Final salary
-        roundedBox(
-            215,
-            boxY,
-            68,
-            18,
-            NAVY
-        );
-
-        text(
-            'FINAL SALARY',
-            221,
-            boxY + 7,
-            6.5,
-            [180, 190, 210],
-            'bold'
-        );
-
-        text(
-            money(d.finalSalary),
-            221,
-            boxY + 14,
-            9,
-            GOLD,
-            'bold'
-        );
-
-        // -----------------------------------------------------
-        // PAGE 2 FOOTER
-        // -----------------------------------------------------
-
-        doc.setFillColor(...NAVY);
-
-        doc.rect(
-            0,
-            200,
-            297,
-            10,
-            'F'
-        );
-
-        text(
-            'SRUTHI TRANSPORT  •  DRIVER EXPENSE DETAILS',
-            14,
-            206,
-            6.5,
-            [180, 190, 210]
-        );
-
-        text(
-            'Page 2',
-            283,
-            206,
-            6.5,
-            [180, 190, 210],
-            'normal'
-        );
-    }
-
-    // =========================================================
-    // FILE NAME
-    // =========================================================
-
-    const fileName =
-        drivers.length === 1
-
-            ? `sruthi-salary-${drivers[0]
-                .replace(/[.\s]+/g, '-')
-                .toLowerCase()}-${month}.pdf`
-
-            : `sruthi-salary-all-drivers-${month}.pdf`;
-
-    // =========================================================
-    // SAVE
-    // =========================================================
-
-    doc.save(fileName);
-
-    // Close modal
-    const modal =
-        document.getElementById(
-            'salaryPdfModal'
-        );
-
-    if (modal) {
-
-        bootstrap.Modal
-            .getInstance(modal)
-            ?.hide();
-    }
-
-    toast(
-        '📄 Premium salary PDF downloaded!',
-        'ok'
-    );
+  });
+
+  yPos = doc.lastAutoTable.finalY + 12;
+
+  // ── Expense breakdown per driver (if single driver or space allows) ──
+  if (driverSel && allData[0]?.entries?.length > 0) {
+    const d = allData[0];
+    doc.setTextColor(11,20,55); doc.setFontSize(10); doc.setFont('helvetica','bold');
+    doc.text('Expense Breakdown — ' + d.driverName, 14, yPos);
+    yPos += 4;
+
+    doc.autoTable({
+      head: [['#','Date','Beta','Meals','Half Load','Other','Comment','Total','Allowance','Adj']],
+      body: d.entries.map((r,i) => {
+        const adj = (r.netAdjustment !== undefined ? r.netAdjustment : (r.total||0)-(r.dailyAllowance||DAILY_ALLOWANCE));
+        return [
+          i+1, fmtDate(r.date),
+          r.beta>0?'₹'+fmt(r.beta):'—',
+          r.meals>0?'₹'+fmt(r.meals):'—',
+          r.halfLoading>0?'₹'+fmt(r.halfLoading):'—',
+          r.other>0?'₹'+fmt(r.other):'—',
+          r.comment||'—',
+          '₹'+fmt(r.total||0),
+          '₹'+fmt(r.dailyAllowance||DAILY_ALLOWANCE),
+          (adj>=0?'+':'−')+'₹'+fmt(Math.abs(adj))
+        ];
+      }),
+      startY: yPos,
+      margin: {left:14, right:14},
+      headStyles: {fillColor:[30,50,90], textColor:[245,158,11], fontStyle:'bold', fontSize:7.5},
+      bodyStyles: {fontSize:7.5, textColor:[20,30,60]},
+      alternateRowStyles: {fillColor:[247,249,253]},
+      styles: {cellPadding:3, lineColor:[215,220,235], lineWidth:.2},
+      columnStyles: {0:{halign:'center',cellWidth:8}}
+    });
+    yPos = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ── Footer ──
+  const pc = doc.internal.getNumberOfPages();
+  for (let i=1;i<=pc;i++) {
+    doc.setPage(i);
+    doc.setFillColor(11,20,55); doc.rect(0,287,210,10,'F');
+    doc.setTextColor(170,180,205); doc.setFontSize(7);
+    doc.text('Sruthi Transport — Driver Salary Report', 14, 293);
+    doc.text(`Page ${i} of ${pc}`, 196, 293, {align:'right'});
+  }
+
+  const fname = driverSel
+    ? `sruthi-salary-${driverSel.replace(/ /g,'-').toLowerCase()}-${month}.pdf`
+    : `sruthi-salary-all-drivers-${month}.pdf`;
+  doc.save(fname);
+  bootstrap.Modal.getInstance(document.getElementById('salaryPdfModal'))?.hide();
+  toast('📄 Salary PDF downloaded!','ok');
 }
