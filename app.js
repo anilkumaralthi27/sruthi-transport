@@ -267,6 +267,8 @@ function applyRole() {
     if (drvPdf) drvPdf.style.display = 'none';
     const addAdv = document.getElementById('addAdvanceBtn');
     if (addAdv) addAdv.style.display = 'none';
+    const advSec = document.getElementById('advancesSection');
+    if (advSec) advSec.style.display = 'none';
     // Lock driver filter dropdown on expense page
     const dexpFilter = document.getElementById('dexpDriverFilter');
     if (dexpFilter) {
@@ -281,6 +283,8 @@ function applyRole() {
     if (drvPdf) drvPdf.style.display = '';
     const addAdv2 = document.getElementById('addAdvanceBtn');
     if (addAdv2) addAdv2.style.display = '';
+    const advSec2 = document.getElementById('advancesSection');
+    if (advSec2) advSec2.style.display = '';
     const dexpFilter = document.getElementById('dexpDriverFilter');
     if (dexpFilter) { dexpFilter.disabled = false; if (dexpFilter.parentElement) dexpFilter.parentElement.style.display = ''; }
   }
@@ -483,7 +487,7 @@ async function loadAll() {
     const dataKey = nameMap[pageName];
     if (dataKey) render(dataKey);
     if (pageName === 'driverdash') { refreshDriverDash(); }
-    if (['drivers','driverexp'].includes(pageName)) renderSalarySummary();
+    if (['drivers','driverexp'].includes(pageName)) { renderSalarySummary(); render('advances'); }
     if (isDriver() && pageName === 'drivers') render('drivers');
     if (isDriver() && pageName === 'driverexp') render('driverexp');
   }
@@ -512,7 +516,7 @@ function loadFromLS() {
     const dataKey = nameMap[pageName];
     if (dataKey) render(dataKey);
     if (pageName === 'driverdash') { refreshDriverDash(); }
-    if (['drivers','driverexp'].includes(pageName)) renderSalarySummary();
+    if (['drivers','driverexp'].includes(pageName)) { renderSalarySummary(); render('advances'); }
     if (isDriver() && pageName === 'drivers') render('drivers');
     if (isDriver() && pageName === 'driverexp') render('driverexp');
   }
@@ -576,6 +580,10 @@ function openModal(name, rec = null) {
     T('driverexpModalTitle', rec ? 'Edit Expense' : 'Add Driver Expense');
     showModal('driverexpModal');
     setTimeout(calcDexpNet, 60);
+
+  } else if (name === 'advances') {
+    openAdvanceModal(rec);
+    return; // openAdvanceModal calls showModal internally
 
   } else if (name === 'drivers') {
     V('driversId', rec?.id||'');         V('fDriverDate', rec?.date||today());
@@ -750,13 +758,15 @@ async function saveDriverExp() {
 
 // ── Open Advance Modal ───────────────────────────────────
 function openAdvanceModal(rec = null) {
-  V('advanceId', rec?.id||'');
+  V('advanceId',  rec?.id||'');
   V('fAdvDriver', rec?.driverName||'');
-  V('fAdvDate', rec?.date||today());
+  V('fAdvDate',   rec?.date||today());
   V('fAdvAmount', rec?.amount||'');
   V('fAdvReason', rec?.reason||'');
   showModal('advanceModal');
 }
+// Allow openModal('advances', rec) to work too
+// (handled in the openModal switch below)
 
 // ── Save Salary Advance ──────────────────────────────────
 async function saveAdvance() {
@@ -909,7 +919,7 @@ function filtered(name) {
 
   return data[name].filter(r => {
     // DIRECT FILTER — driver sees only their own records (both name formats)
-    if (myName && (name === 'drivers' || name === 'driverexp')) {
+    if (myName && (name === 'drivers' || name === 'driverexp' || name === 'advances')) {
       const recName  = (r.driverName || '').trim().toLowerCase();
       const mine     = myName.trim().toLowerCase();
       const mineAlt  = (isDriver() ? getDriverNameAlt() : '').trim().toLowerCase();
@@ -922,7 +932,8 @@ function filtered(name) {
     if(name==='loads')     txt=`${r.vehicle} ${r.date} ${r.weight} ${r.rate}`;
     if(name==='allLoads')  txt=`${r.vehicle} ${r.driverName} ${r.fromPlace} ${r.toPlace} ${r.partyPerson||''} ${r.loadingPerson||''} ${r.date}`;
     if(name==='drivers')   txt=`${r.driverName} ${r.status} ${r.date}`;
-    if(name==='driverexp') txt=`${r.driverName} ${r.date} ${r.comment||''}`;
+    if(name==='driverexp')  txt=`${r.driverName} ${r.date} ${r.comment||''}`;
+    if(name==='advances')   txt=`${r.driverName} ${r.date} ${r.reason||''}`;
     let ok = txt.toLowerCase().includes(q);
     if(name==='credit'  && co) ok = ok && r.company===co;
     if(name==='drivers' && ds) ok = ok && r.status===ds;
@@ -952,6 +963,7 @@ function render(name) {
   if(name==='allLoads')  renderAllLoads(slice, offset);
   if(name==='drivers')   renderDrivers(slice, offset);
   if(name==='driverexp') renderDriverExp(slice, offset);
+  if(name==='advances')  renderAdvances(slice, offset);
   renderPg(name, rows.length);
   renderTotals(name, rows);
 }
@@ -1052,6 +1064,26 @@ function renderDrivers(rows, off) {
   </tr>`).join('');
 }
 
+function renderAdvances(rows, off) {
+  const b = document.getElementById('advancesBody');
+  if (!b) return;
+  if (!rows.length) { b.innerHTML = emptyRow(6); return; }
+  b.innerHTML = rows.map((r, i) => {
+    const key = cacheEdit('advances', r);
+    return `<tr>
+      <td class="mono" style="color:var(--muted)">${off+i+1}</td>
+      <td>${fmtDate(r.date)}</td>
+      <td><strong>${r.driverName}</strong></td>
+      <td class="c-red"><strong>₹ ${fmt(r.amount)}</strong></td>
+      <td style="font-size:12.5px;color:var(--muted);max-width:180px;white-space:normal">${r.reason||'—'}</td>
+      <td>
+        <button class="abtn abtn-edit me-1" onclick='editFromCache("${key}")'><i class="bi bi-pencil-fill"></i></button>
+        <button class="abtn abtn-del" onclick='askDelete("advances","${r.id}")'><i class="bi bi-trash3-fill"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
 function renderDriverExp(rows, off) {
   const b=document.getElementById('driverexpBody'); if(!b) return;
   if(!rows.length){b.innerHTML=emptyRow(10);return;}
@@ -1120,6 +1152,11 @@ function renderTotals(name, rows) {
     set('countAbsent',  rows.filter(r=>r.status==='Absent').length);
   } else if(name==='driverexp') {
     set('dexpTotal','₹ '+fmt(rows.reduce((s,r)=>s+(+r.total||0),0)));
+    renderSalarySummary();
+  } else if(name==='advances') {
+    const tot = rows.reduce((s,r)=>s+(+r.amount||0),0);
+    const dispEl = document.getElementById('advancesTotalDisplay');
+    if (dispEl) dispEl.textContent = '₹ '+fmt(tot)+' total advances';
     renderSalarySummary();
   }
 }
