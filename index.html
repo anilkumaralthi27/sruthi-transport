@@ -766,6 +766,25 @@ body{font-family:'Outfit',system-ui,sans-serif}
       <div class="pgbar" id="driverexpPg"></div>
     </div>
 
+    <!-- Salary Advances Table -->
+    <div class="glass-card mb-4" id="advancesSection">
+      <div class="gc-head d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cash-coin" style="color:var(--red)"></i> Salary Advances</span>
+        <span class="tp-val" id="advancesTotalDisplay" style="font-size:14px;color:var(--red)">₹ 0.00 total advances</span>
+      </div>
+      <div class="table-wrap">
+        <table class="ptable">
+          <thead><tr>
+            <th>#</th><th>Date</th><th>Driver</th><th>Amount (₹)</th><th>Reason</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="advancesBody">
+            <tr class="empty-row"><td colspan="6"><i class="bi bi-cash-coin"></i><br/>No advances recorded</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pgbar" id="advancesPg"></div>
+    </div>
+
     <!-- Salary Summary Cards -->
     <div class="glass-card">
       <div class="gc-head"><i class="bi bi-wallet-fill" style="color:var(--amber)"></i> Driver Salary Summary — <span id="salarySummaryMonth"></span>
