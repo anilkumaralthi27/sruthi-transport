@@ -1269,6 +1269,9 @@ function refreshDash() {
       :'<div class="empty-ri">No load records yet</div>';
   }
   if (typeof buildChart==='function') buildChart();
+  populateMonthSelects();
+  buildProfitStats();
+  buildVehicleStats();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1698,6 +1701,136 @@ function switchMetric(btn, metric) {
   buildChart();
 }
 
+
+
+// ══════════════════════════════════════════════════════════
+//  DASHBOARD — MONTHLY PROFIT & VEHICLE PROFIT
+// ══════════════════════════════════════════════════════════
+
+const KNOWN_VEHICLES = ['6199','9046','3646','6147','5855','2704','4977','6819','1517','5558'];
+
+function populateMonthSelects() {
+  // Build unique months from allLoads data
+  const months = [...new Set(
+    data.allLoads.map(r => (r.date||'').slice(0,7)).filter(Boolean)
+  )].sort().reverse();
+
+  const now = new Date().toISOString().slice(0,7);
+  if (!months.includes(now)) months.unshift(now);
+
+  ['profitMonthSelect','vehMonthSelect'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = months.map(m => {
+      const [y,mo] = m.split('-');
+      const lbl = new Date(parseInt(y), parseInt(mo)-1)
+        .toLocaleString('en-IN', {month:'long', year:'numeric'});
+      return `<option value="${m}"${m===cur?' selected':''}>${lbl}</option>`;
+    }).join('');
+    if (!el.value && months.length) el.value = months[0];
+  });
+}
+
+function buildProfitStats() {
+  const month = document.getElementById('profitMonthSelect')?.value || '';
+  const rows  = data.allLoads.filter(r => !month || (r.date||'').startsWith(month));
+
+  const tBuy    = rows.reduce((s,r) => s+(+(r.total||r.weight*(r.rate||0))||0), 0);
+  const tSell   = rows.reduce((s,r) => s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0), 0);
+  const tTrips  = rows.length;
+  const tProfit = rows.reduce((s,r) => {
+    const b = r.total||(r.weight*(r.rate||0))||0;
+    const sl= r.sellTotal||(r.weight*(r.sellRate||0))||0;
+    const p = r.profit!==undefined ? r.profit : (sl-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
+    return s+p;
+  }, 0);
+
+  set('pm-buy',    '₹ '+fmt(tBuy));
+  set('pm-sell',   '₹ '+fmt(tSell));
+  set('pm-trips',  tTrips);
+  set('pm-profit', (tProfit>=0?'₹ ':'- ₹ ')+fmt(Math.abs(tProfit)));
+
+  // Colour profit pill
+  const pill = document.getElementById('pm-profit-pill');
+  if (pill) {
+    pill.style.background = tProfit >= 0
+      ? 'rgba(16,185,129,0.12)'
+      : 'rgba(239,68,68,0.10)';
+    pill.style.borderColor = tProfit >= 0
+      ? 'rgba(16,185,129,0.30)'
+      : 'rgba(239,68,68,0.28)';
+    const valEl = document.getElementById('pm-profit');
+    if (valEl) valEl.style.color = tProfit >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+}
+
+function buildVehicleStats() {
+  const month = document.getElementById('vehMonthSelect')?.value || '';
+  const rows  = data.allLoads.filter(r => !month || (r.date||'').startsWith(month));
+  const body  = document.getElementById('vehProfitBody');
+  if (!body) return;
+
+  if (!rows.length) {
+    body.innerHTML = '<tr class="empty-row"><td colspan="6"><i class="bi bi-truck"></i><br/>No load data for this month</td></tr>';
+    return;
+  }
+
+  // Aggregate by vehicle
+  const vehMap = {};
+  rows.forEach(r => {
+    // Normalise vehicle — strip spaces, uppercase
+    const raw = (r.vehicle||'').trim().toUpperCase();
+    // Check if it matches a known vehicle (partial match on last 4 digits)
+    let key = 'Others';
+    for (const kv of KNOWN_VEHICLES) {
+      if (raw.includes(kv)) { key = kv; break; }
+    }
+
+    if (!vehMap[key]) vehMap[key] = { vehicle:key, trips:0, weight:0, buy:0, sell:0, profit:0, isOther: key==='Others', otherVehs:new Set() };
+
+    const b  = r.total||(r.weight*(r.rate||0))||0;
+    const sl = r.sellTotal||(r.weight*(r.sellRate||0))||0;
+    const p  = r.profit!==undefined ? r.profit : (sl-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
+
+    vehMap[key].trips   += 1;
+    vehMap[key].weight  += parseFloat(r.weight||0);
+    vehMap[key].buy     += b;
+    vehMap[key].sell    += sl;
+    vehMap[key].profit  += p;
+    if (key === 'Others') vehMap[key].otherVehs.add(raw);
+  });
+
+  // Sort: known vehicles first (in KNOWN_VEHICLES order), then Others
+  const ordered = [
+    ...KNOWN_VEHICLES.filter(v => vehMap[v]).map(v => vehMap[v]),
+    ...(vehMap['Others'] ? [vehMap['Others']] : [])
+  ];
+
+  const grandProfit = ordered.reduce((s,v)=>s+v.profit,0);
+
+  body.innerHTML = ordered.map(v => {
+    const pCls    = v.profit > 0 ? 'c-green' : v.profit < 0 ? 'c-red' : 'mono';
+    const pSign   = v.profit < 0 ? '−' : '';
+    const vLabel  = v.isOther
+      ? `<span title="${[...v.otherVehs].join(', ')}" style="cursor:help">Others <small style="color:var(--muted)">(${v.otherVehs.size})</small></span>`
+      : `<span class="mono" style="font-weight:700;letter-spacing:.04em">${v.vehicle}</span>`;
+    return `<tr>
+      <td>${vLabel}</td>
+      <td class="mono" style="text-align:center">${v.trips}</td>
+      <td class="mono" style="text-align:right">${v.weight.toFixed(2)} T</td>
+      <td class="mono" style="text-align:right;color:var(--muted)">₹ ${fmt(v.buy)}</td>
+      <td class="mono" style="text-align:right;color:var(--green)">₹ ${fmt(v.sell)}</td>
+      <td class="${pCls}" style="text-align:right;font-weight:700">${pSign}₹ ${fmt(Math.abs(v.profit))}</td>
+    </tr>`;
+  }).join('') + `<tr style="background:var(--surf2);border-top:2px solid var(--border)">
+      <td colspan="2" style="font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--muted)">TOTAL</td>
+      <td></td><td></td><td></td>
+      <td class="${grandProfit>=0?'c-green':'c-red'}" style="text-align:right;font-weight:800;font-size:14px">
+        ${grandProfit<0?'−':''}₹ ${fmt(Math.abs(grandProfit))}
+      </td>
+    </tr>`;
+}
 // ══════════════════════════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════════════════════════
