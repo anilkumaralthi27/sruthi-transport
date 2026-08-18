@@ -1333,7 +1333,11 @@ function exportPDF(name, customRows=null) {
   const CW  = PW - ML - MR; // content width
 
   // Sort ascending by date for all PDFs
-  const rows = (customRows || filtered(name)).slice().sort((a,b) => new Date(a.date)-new Date(b.date));
+  const rows = (customRows || filtered(name))
+  .slice()
+  .sort((a, b) => {
+    return new Date(a.date) - new Date(b.date);
+  });
   const now  = new Date();
   const dStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
   const titles = {
