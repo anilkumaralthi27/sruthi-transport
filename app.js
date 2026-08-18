@@ -1332,7 +1332,8 @@ function exportPDF(name, customRows=null) {
   const ML  = 12, MR = 12; // margins
   const CW  = PW - ML - MR; // content width
 
-  const rows = customRows || filtered(name);
+  // Sort ascending by date for all PDFs
+  const rows = (customRows || filtered(name)).slice().sort((a,b) => new Date(a.date)-new Date(b.date));
   const now  = new Date();
   const dStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
   const titles = {
@@ -2038,7 +2039,7 @@ function downloadSalaryPdf() {
 
     doc.autoTable({
       head: [['#','Date','Beta','Meals','Half Load','Other','Comment','Total','Allowance','Adj']],
-      body: d.entries.map((r,i) => {
+      body: [...d.entries].sort((a,b)=>new Date(a.date)-new Date(b.date)).map((r,i) => {
         const adj = (r.netAdjustment !== undefined ? r.netAdjustment : (r.total||0)-(r.dailyAllowance||DAILY_ALLOWANCE));
         return [
           i+1, fmtDate(r.date),
