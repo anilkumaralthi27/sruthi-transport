@@ -1244,6 +1244,23 @@ function refreshDriverDash() {
 // ══════════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════
+// Financial calculations are derived from source fields, never cached r.profit.
+// Amount fields take precedence; otherwise amount = weight × rate.
+function loadFinancials(r) {
+  const weight = Number(r.weight) || 0;
+  const buying = r.total != null && r.total !== '' ? (Number(r.total) || 0) : weight * (Number(r.rate) || 0);
+  const selling = r.sellTotal != null && r.sellTotal !== '' ? (Number(r.sellTotal) || 0) : weight * (Number(r.sellRate) || 0);
+  const fuel = Number(r.fuelCost) || 0;
+  const beta = Number(r.driverBeta) || 0;
+  const other = Number(r.otherCost) || 0;
+  return { weight, buying, selling, fuel, beta, other, profit: selling - buying - fuel - beta - other };
+}
+function localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 function refreshDash() {
   set('d-credit',    '₹ '+fmt(data.credit.reduce((s,r)=>s+(+r.amount||0),0)));
   set('d-pending',   '₹ '+fmt(data.pending.reduce((s,r)=>s+(+r.amount||0),0)));
@@ -1251,7 +1268,7 @@ function refreshDash() {
   set('d-weight',    data.loads.reduce((s,r)=>s+(+r.weight||0),0).toFixed(2)+' T');
   set('d-saburi-amt','₹ '+fmt(data.loads.reduce((s,r)=>s+(+(r.total||r.weight*r.rate)||0),0)));
   set('d-allloads',  data.allLoads.length);
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localDateKey();
   set('d-drivers', data.drivers.filter(r=>r.date===todayStr&&r.status==='Present').length);
 
   const rc=document.getElementById('d-recent-credit');
@@ -1712,7 +1729,7 @@ function switchMetric(btn, metric) {
 //  DASHBOARD — MONTHLY PROFIT & VEHICLE PROFIT
 // ══════════════════════════════════════════════════════════
 
-const KNOWN_VEHICLES = ['6199','9046','3646','6147','5855','2704','4977','6819','1517','5558'];
+const KNOWN_VEHICLES = []; // Vehicle reports are grouped from actual records, not a hard-coded fleet list.
 
 function populateMonthSelects() {
   // Build unique months from allLoads data
@@ -1741,15 +1758,10 @@ function buildProfitStats() {
   const month = document.getElementById('profitMonthSelect')?.value || '';
   const rows  = data.allLoads.filter(r => !month || (r.date||'').startsWith(month));
 
-  const tBuy    = rows.reduce((s,r) => s+(+(r.total||r.weight*(r.rate||0))||0), 0);
-  const tSell   = rows.reduce((s,r) => s+(+(r.sellTotal||r.weight*(r.sellRate||0))||0), 0);
+  const tBuy    = rows.reduce((s,r) => s + loadFinancials(r).buying, 0);
+  const tSell   = rows.reduce((s,r) => s + loadFinancials(r).selling, 0);
   const tTrips  = rows.length;
-  const tProfit = rows.reduce((s,r) => {
-    const b = r.total||(r.weight*(r.rate||0))||0;
-    const sl= r.sellTotal||(r.weight*(r.sellRate||0))||0;
-    const p = r.profit!==undefined ? r.profit : (sl-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
-    return s+p;
-  }, 0);
+  const tProfit = rows.reduce((s,r) => s + loadFinancials(r).profit, 0);
 
   set('pm-buy',    '₹ '+fmt(tBuy));
   set('pm-sell',   '₹ '+fmt(tSell));
@@ -1784,42 +1796,26 @@ function buildVehicleStats() {
   // Aggregate by vehicle
   const vehMap = {};
   rows.forEach(r => {
-    // Normalise vehicle — strip spaces, uppercase
-    const raw = (r.vehicle||'').trim().toUpperCase();
-    // Check if it matches a known vehicle (partial match on last 4 digits)
-    let key = 'Others';
-    for (const kv of KNOWN_VEHICLES) {
-      if (raw.includes(kv)) { key = kv; break; }
-    }
-
-    if (!vehMap[key]) vehMap[key] = { vehicle:key, trips:0, weight:0, buy:0, sell:0, profit:0, isOther: key==='Others', otherVehs:new Set() };
-
-    const b  = r.total||(r.weight*(r.rate||0))||0;
-    const sl = r.sellTotal||(r.weight*(r.sellRate||0))||0;
-    const p  = r.profit!==undefined ? r.profit : (sl-b-(r.fuelCost||0)-(r.driverBeta||0)-(r.otherCost||0));
-
-    vehMap[key].trips   += 1;
-    vehMap[key].weight  += parseFloat(r.weight||0);
-    vehMap[key].buy     += b;
-    vehMap[key].sell    += sl;
-    vehMap[key].profit  += p;
-    if (key === 'Others') vehMap[key].otherVehs.add(raw);
+    const raw = String(r.vehicle || 'Unassigned').trim().toUpperCase() || 'Unassigned';
+    const key = raw;
+    if (!vehMap[key]) vehMap[key] = { vehicle:key, trips:0, weight:0, buy:0, sell:0, profit:0 };
+    const f = loadFinancials(r);
+    vehMap[key].trips += 1;
+    vehMap[key].weight += f.weight;
+    vehMap[key].buy += f.buying;
+    vehMap[key].sell += f.selling;
+    vehMap[key].profit += f.profit;
   });
 
   // Sort: known vehicles first (in KNOWN_VEHICLES order), then Others
-  const ordered = [
-    ...KNOWN_VEHICLES.filter(v => vehMap[v]).map(v => vehMap[v]),
-    ...(vehMap['Others'] ? [vehMap['Others']] : [])
-  ];
+  const ordered = Object.values(vehMap).sort((a,b) => a.vehicle.localeCompare(b.vehicle, undefined, {numeric:true}));
 
   const grandProfit = ordered.reduce((s,v)=>s+v.profit,0);
 
   body.innerHTML = ordered.map(v => {
     const pCls    = v.profit > 0 ? 'c-green' : v.profit < 0 ? 'c-red' : 'mono';
     const pSign   = v.profit < 0 ? '−' : '';
-    const vLabel  = v.isOther
-      ? `<span title="${[...v.otherVehs].join(', ')}" style="cursor:help">Others <small style="color:var(--muted)">(${v.otherVehs.size})</small></span>`
-      : `<span class="mono" style="font-weight:700;letter-spacing:.04em">${v.vehicle}</span>`;
+    const vLabel = `<span class="mono" style="font-weight:700;letter-spacing:.04em">${v.vehicle}</span>`;
     return `<tr>
       <td>${vLabel}</td>
       <td class="mono" style="text-align:center">${v.trips}</td>
