@@ -652,6 +652,15 @@ async function saveLoad() {
   hideModal('loadsModal');
 }
 
+function normalizeDestination(value) {
+  return String(value || '').normalize('NFKC').toLowerCase().replace(/[\s._-]+/g, '').replace(/[^a-z]/g, '');
+}
+
+async function removeLinkedSaburi(allLoadId) {
+  const linked = data.loads.filter(r => r.sourceAllLoadId === allLoadId);
+  for (const rec of linked) await doDelete('loads', rec.id, { silent: true });
+}
+
 async function saveAllLoad() {
   const id           = document.getElementById('allLoadsId').value;
   const date         = document.getElementById('fAllDate').value;
@@ -675,51 +684,31 @@ async function saveAllLoad() {
   const buyTotal  = weight * rate;
   const sellTotal = weight * sellRate;
   const profit    = sellTotal - buyTotal - fuelCost - driverBeta - otherCost;
-  await upsert('allLoads', id, {
+  const savedId = await upsert('allLoads', id, {
     date, vehicle, driverName, driverBeta, fromPlace, toPlace, fuel, partyPerson, loadingPerson,
     weight, rate, sellRate, fuelCost, otherCost,
     total:buyTotal, sellTotal, profit,
-    createdAt:new Date().toISOString()
+    createdAt: id ? (data.allLoads.find(r => r.id === id)?.createdAt || new Date().toISOString()) : new Date().toISOString()
   });
+
+  // Maintain one explicitly linked Saburi mirror for this master load.
+  // Existing unlinked historical `loads` records are intentionally left untouched.
+  const isSaburi = normalizeDestination(toPlace) === 'saburi';
+  const linked = data.loads.find(r => r.sourceAllLoadId === savedId);
+  if (isSaburi) {
+    const mirror = {
+      sourceAllLoadId: savedId, date, vehicle, weight,
+      rate: sellRate, total: sellTotal, buyRate: rate, buyTotal, profit,
+      autoAdded: true, updatedAt: new Date().toISOString()
+    };
+    if (linked) await upsert('loads', linked.id, mirror);
+    else await upsert('loads', '', { ...mirror, createdAt: new Date().toISOString() });
+  } else if (linked) {
+    await removeLinkedSaburi(savedId);
+  }
   hideModal('allLoadsModal');
 
-  // ── Auto-add to Loads to Saburi when destination is Saburi ──
-  const dest = toPlace.toLowerCase();
-  if (dest.includes('saburi') || dest.includes('sabari')) {
-    const saburiRec = {
-      date, vehicle, weight,
-      rate:    sellRate,      // Loads to Saburi shows SELLING rate as the rate per ton
-      total:   sellTotal,     // Loads to Saburi total = selling amount
-      buyRate: rate,          // keep buying rate for reference
-      buyTotal,
-      profit,
-      autoAdded: true,
-      createdAt: new Date().toISOString()
-    };
-    try {
-      if (useLS) {
-        const exists = data.loads.some(r =>
-          r.date===date && r.vehicle===vehicle && Math.abs((r.weight||0)-weight)<0.01
-        );
-        if (!exists) {
-          data.loads.unshift({ id:genId(), ...saburiRec });
-          saveLS('loads');
-          render('loads');
-          toast('✅ Saved & auto-added to Loads to Saburi', 'ok');
-        }
-      } else {
-        const snap = await db.collection('loads')
-          .where('date','==',date).where('vehicle','==',vehicle).get();
-        const exists = snap.docs.some(d => Math.abs((d.data().weight||0)-weight)<0.01);
-        if (!exists) {
-          const ref = await db.collection('loads').add(saburiRec);
-          data.loads.unshift({ id:ref.id, ...saburiRec });
-          render('loads');
-          toast('✅ Saved & auto-added to Loads to Saburi', 'ok');
-        }
-      }
-    } catch(e) { console.warn('Auto-add to Saburi failed:', e); }
-  }
+
 }
 
 async function saveDriver() {
@@ -870,7 +859,7 @@ async function upsert(name, id, rec) {
   try {
     if (useLS) {
       if (id) { const i=data[name].findIndex(r=>r.id===id); if(i!==-1) data[name][i]={...data[name][i],...rec}; }
-      else data[name].unshift({ id:genId(), ...rec });
+      else { id = genId(); data[name].unshift({ id, ...rec }); }
       saveLS(name);
     } else {
       if (id) {
@@ -879,11 +868,13 @@ async function upsert(name, id, rec) {
         if(i!==-1) data[name][i]={id,...rec};
       } else {
         const ref=await db.collection(name).add(rec);
+        id = ref.id;
         data[name].unshift({ id:ref.id, ...rec });
       }
     }
     render(name); refreshDash();
     toast(id ? '✏️ Updated successfully' : '✅ Saved successfully','ok');
+    return id;
   } catch(e) { console.error(e); toast('❌ Save failed — check console','err'); }
   finally { spin(false); }
 }
@@ -895,14 +886,22 @@ function askDelete(name, id) {
   document.getElementById('confirmDelBtn').onclick = () => { m.hide(); delCb?.(); delCb=null; };
 }
 
-async function doDelete(name, id) {
+async function doDelete(name, id, options = {}) {
   spin(true);
   try {
+    if (name === 'allLoads') {
+      const linked = data.loads.filter(r => r.sourceAllLoadId === id);
+      for (const rec of linked) {
+        if (useLS) { data.loads = data.loads.filter(r => r.id !== rec.id); saveLS('loads'); }
+        else await db.collection('loads').doc(rec.id).delete();
+      }
+      data.loads = data.loads.filter(r => r.sourceAllLoadId !== id);
+    }
     if (useLS) { data[name]=data[name].filter(r=>r.id!==id); saveLS(name); }
     else { await db.collection(name).doc(id).delete(); data[name]=data[name].filter(r=>r.id!==id); }
     render(name); refreshDash();
-    toast('🗑️ Deleted successfully','ok');
-  } catch(e) { console.error(e); toast('❌ Delete failed','err'); }
+    if (!options.silent) toast('🗑️ Deleted successfully','ok');
+  } catch(e) { console.error(e); if (!options.silent) toast('❌ Delete failed','err'); throw e; }
   finally { spin(false); }
 }
 
